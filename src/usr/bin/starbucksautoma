@@ -1,0 +1,132 @@
+#!/usr/bin/env python3.5
+
+# automatically add my schedules to my calendar
+
+# options
+# -c|--cache -> dry run, do NOT modify google calendar
+# -s|--schedule -> modify calendar and log it to the format "WEEK OF .*".json
+# --verbose -> print everything and don't create anything
+# picture -> https://www.freecomputerwallpapers.net/view/starbucks_coffee_robot_wallpaper-1920x1080.html
+
+# Documentation to BeautifulSoup -> https://www.crummy.com/software/BeautifulSoup/bs4/doc/
+# our imports, we do not need to change these
+
+# TODO
+# 1. send email functionality
+
+
+from __future__ import print_function
+
+# Webdrivers
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver import ActionChains
+from selenium.webdriver.firefox.options import Options
+import selenium.webdriver.support.ui as ui
+from bs4 import BeautifulSoup
+
+# Automation
+from starbucksautoma import send_email
+import pyautogui
+
+# Scraping
+from starbucksautoma import new_algorithm_implementation
+from starbucksautoma import processing_rewrite
+from starbucksautoma import JSONParser
+
+# System
+import sys
+import os
+import getopt
+from starbucksautoma import driver_utils
+import time
+import getpass
+import shutil
+
+parser = JSONParser.jsonparser("/home/"+getpass.getuser()+"/Applications/starbucks_automa/credentials/config.json")
+url = "https://sbux.co/teamworks"
+def version(starbucks_automa_version):
+    print("Version: {}".format(starbucks_automa_version))
+
+cmdArgs = sys.argv if len(sys.argv) > 1 else driver_utils.usage(sys.argv[0])
+argumentList = cmdArgs[1:]
+unixopts = "csdr:v"
+opts = ["cache", "scheduler", "debug", "remove", "verbose", "version"]
+try:
+    arguments, values = getopt.getopt(argumentList, unixopts, opts)
+except getopt.error as err:
+    print(str(err))
+    sys.exit(2)
+for currentArg, currentVal in arguments:
+    if currentArg in ("--version"):
+        version("1.0")
+        quit()
+    elif currentArg in ("-c", "--cache"):
+            print("[+] Doing a dry run, not making changes to the Google Calendar")
+    elif currentArg in ("-s", "--scheduler"):
+            print("[+] Entered scheduling mode, will make direct changes to Google Calendar")
+    elif currentArg in ("-d", "--debug"):
+            array, current_week, total_hours = new_algorithm_implementation.scrape_page("/home/jared/Downloads/requested_files/page.html")
+            new_algorithm_implementation.addweekrefactored(array, current_week)
+            #new_algorithm_implementation.remove_week(array, current_week)
+            quit()
+
+# https://stackoverflow.com/questions/46753393/how-to-make-firefox-headless-programmatically-in-selenium-with-python
+option = Options()
+option.headless = False
+driver = webdriver.Firefox(options=option)
+driver.get(url)
+action = ActionChains(driver)
+wait = ui.WebDriverWait(driver, 60)
+
+print("[+] Loaded webpage, logging in...")
+time.sleep(5)
+driver_utils.findUserName(driver, parser).click()
+print("[+] Clicked username box...")
+
+print("[+] 2FA-Question Reached...")
+driver_utils.findTwoFAQuestion(driver, parser).click()
+print("[+] Got passed 2FA-Question..")
+
+
+print("[+] Password field Reached...")
+
+driver_utils.findFinalPassword(driver, parser).click()
+# we needed to wait about 10-15 seconds for the page to load
+print("[+] Logged in, waiting to reach landing page...")
+driver_utils.waitForPageToLoad(driver, wait, action, text="{}".format(driver.title))
+
+print("[+] Waiting for the page to load for ten seconds...")
+
+time.sleep(10)
+
+way_point = os.getcwd()
+
+os.chdir("/home/{}/Downloads".format(getpass.getuser()))
+
+pyautogui.hotkey('ctrl', 's')
+time.sleep(1)
+pyautogui.typewrite("requested")
+pyautogui.hotkey('enter')
+time.sleep(2)
+pyautogui.hotkey('enter')
+time.sleep(4)
+array, current_week, total_hours = new_algorithm_implementation.scrape_page(os.getcwd()+"/requested_files/page.html")
+
+driver.quit()
+os.chdir(way_point)
+
+for currentArg, currentVal in arguments:
+    if currentArg in ("--version"):
+        version("1.0")
+    elif currentArg in ("-s", "--scheduler"):
+            new_algorithm_implementation.addweekrefactored(array, current_week)
+            new_algorithm_implementation.write_to_file(array, current_week)
+    elif currentArg in ("-c", "--cache"):
+            print("[+] Caching feature needs to be implemented")
+            new_algorithm_implementation.write_to_file(array, current_week)
+
+os.remove("geckodriver.log")
+#os.remove("/home/{}/Downloads/requested.html".format(getpass.getuser()))
+
