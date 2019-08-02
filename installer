@@ -30,4 +30,3 @@ APP_LOCATION="$HOME/Applications/starbucks_automa"
 
 # Test if it was successfully installed
 
-starbucksautoma --version
