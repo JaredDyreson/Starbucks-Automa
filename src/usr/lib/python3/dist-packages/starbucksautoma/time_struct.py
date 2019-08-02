@@ -19,29 +19,39 @@ class time_struct(object):
 
 	# start: datetime
 	# end: datetime
+	
+	# constructors
 
-	def __init__(self, start=datetime.datetime.today(), end=datetime.datetime.today(), summary="{}'s Work".format(parser.getjsonkey(key="name"))):
+	def __init__(self, start=datetime.datetime.today(), end=datetime.datetime.today(), time_off=False, summary="{}'s Work".format(parser.getjsonkey(key="name"))):
 		self.begin = start
 		self.end = end
+		self.time_off = time_off
 		self.summary = summary
+
 	@classmethod
+	# get start and end from a dictionary/json responses but neglecting the summary tag
 	def from_dict(cls, body: dict):
-		s = datetime.datetime.strptime(body['start'].replace("-07:00", ""), "%Y-%m-%d{}%H:%M:%S".format("T"))
-		e = datetime.datetime.strptime(body['end'].replace("-07:00", ""), "%Y-%m-%d{}%H:%M:%S".format("T"))
+		s = datetime.datetime.strptime(body['start'].replace(time_struct.get_utc_offset(time_struct), ""), "%Y-%m-%d{}%H:%M:%S".format("T"))
+		e = datetime.datetime.strptime(body['end'].replace(time_struct.get_utc_offset(time_struct), ""), "%Y-%m-%d{}%H:%M:%S".format("T"))
 		return cls(s, e)
 	@classmethod
+	# get start and end from a dictionary/json response including the summary to allow for comparing results from free busy
 	def from_freebusy(cls, response: dict):
-		b = str(response.get('start').get('dateTime'))
+		b = str(response['start']['dateTime'])
 		t = str(response['end']['dateTime'])
-		s = datetime.datetime.strptime(b.replace("-07:00", ""), "%Y-%m-%d{}%H:%M:%S".format("T"))
-		e = datetime.datetime.strptime(t.replace("-07:00", ""), "%Y-%m-%d{}%H:%M:%S".format("T"))
+		s = datetime.datetime.strptime(b.replace(time_struct.get_utc_offset(time_struct), ""), "%Y-%m-%d{}%H:%M:%S".format("T"))
+		e = datetime.datetime.strptime(t.replace(time_struct.get_utc_offset(time_struct), ""), "%Y-%m-%d{}%H:%M:%S".format("T"))
 		summary = response['summary']
-		identification = response['id']
-		return cls(s, e, summary, identification)
+		return cls(s, e, summary)
+
 	def __eq__(self, other):
+		# check if the json event data is the same
+		# return: boolean
 		return self.form_submit_body() == other.form_submit_body()
 
 	def __ne__(self, other):
+		# return the inverse of the __eq__ operator
+		# boolean
 		return not self.__eq__(self, other)
 
 	def __hash__(self):
@@ -49,9 +59,9 @@ class time_struct(object):
 		# returns: hash of time_struct class
 		return hash(",".join(dir(self)))
 
-	def is_midnight(self, time_object):
+	def is_midnight(self, time_object: datetime.datetime.time):
 		# takes in either self.begin or self.end and returns boolean
-		return (time_object.hour == 0) and (time_object.minute == 0) and (time_object.second == 0)
+		return datetime.time(0, 0) == time_object.time()
 	def google_calendar_format(self):
 		# returns a list of string objects (len of 2) that can be passed to form_submit_body
 
@@ -61,27 +71,41 @@ class time_struct(object):
 	def get_time_elapsed(self):
 		# compute total time working
 		# return: float
-		time_elapsed_ = (self.end - self.begin).total_seconds()
-		time_elapsed_/=3600 
-		return abs(time_elapsed_)
+		return abs((self.end - self.begin).total_seconds()/3600)
 	
 	def form_submit_body(self, timezone=parser.getjsonkey(key="timezone"), location=parser.getjsonkey(key="store_location")):
-		body = [('summary', "{}'s Work".format(parser.getjsonkey(key="name"))),
-	    ('start', {'dateTime': self.google_calendar_format()[0], 'timeZone': timezone}),
-	    ('end', {'dateTime': self.google_calendar_format()[1], 'timeZone': timezone}),
-	    ('location', location)]
+		# return a json body that will be used for submitting to the Google Calendar API
+		# return : string representation of a json object
+		body = [
+			('summary', "{}'s Work".format(parser.getjsonkey(key="name"))),
+			('start', {'dateTime': self.google_calendar_format()[0], 'timeZone': timezone}),
+			('end', {'dateTime': self.google_calendar_format()[1], 'timeZone': timezone}),
+			('location', location)
+	    	]
 		final_submit_body = collections.OrderedDict(body)
 		return json.dumps(final_submit_body, indent=4)
+
 	def get_utc_offset(self):
+		# get the current UTC offset from your predetermined time zone
+		# returns in the regex format of : [0-9]{2}\:[0-9]{2}
+
 		current_offset = datetime.datetime.now(pytz.timezone(parser.getjsonkey(key="timezone"))).strftime("%z")
 		return "{}:{}".format(current_offset[:3], current_offset[3:])
+
 	def gen_human_readable(self, time_obj: datetime):
+		# return a date string that looks something like this: Monday January 2, 15:30
+
 		string_version = datetime.datetime.strftime(time_obj, "%Y-%m-%d{}%H:%M:%S").format("T")
 		return datetime.datetime.strptime(string_version, "%Y-%m-%d{}%H:%M:%S".format("T")).strftime("%A %B %d, %H:%M")
+
 	def google_date_added_string(self):
+		# return a string that can be used for reporting if an event has been added or is already present
+		# example: from Monday January 2 11:15 to 15:15
+
 		begin_h = self.gen_human_readable(self.begin)
 		end_h = self.gen_human_readable(self.end)
 		return "from {} to {}".format(begin_h, end_h.split()[3])
+
 def assert_test():
 	total_tests = 3
 	counter = 0
@@ -100,7 +124,7 @@ def assert_test():
 		print("\t[-] failed")
 		print("\t[-] output: {}".format(ts1.get_time_elapsed()))
 	print("checking equality operator..")
-	if(not ts1 == ts2):
+	if not (ts1 == ts2):
 		print("\t[+] passed")
 		counter+=1
 	else:

@@ -20,12 +20,17 @@ import time
 import os
 from collections import OrderedDict
 from datetime import datetime
+import getpass
 
 from starbucksautoma import json_parser as jp
 from starbucksautoma import time_struct as ts
 
+username_ = getpass.getuser()
+portal_url = "https://sbux.co/teamworks"
+p = jp.jsonparser("/home/{}/Applications/starbucks_automa/credentials/config.json".format(username_))
+
 class portal_driver():
-	def __init__(self, driver: webdriver, jparser: jp.jsonparser):
+	def __init__(self, driver: webdriver, jparser=p):
 		self.driver = driver
 		self.parser = jparser
 	def scrape_week_merge_to_dict(self, from_page: list):
@@ -45,7 +50,9 @@ class portal_driver():
 			
 				start = datetime.strptime(start, "%I:%M %p").time()
 				end = datetime.strptime(end, "%I:%M %p").time()
-				a_dictionary[ts.time_struct(start, end)] = True
+				a_dictionary[ts.time_struct(start, end, time_off=False)] = True
+			#elif("Time Off" in day.text):
+			#	a_dictionary[ts.time_struct(time_off=True)] = False
 			else:
 				a_dictionary[ts.time_struct()] = False
 		return a_dictionary
@@ -95,9 +102,25 @@ class portal_driver():
 		elif(security_question.text == "What is your favorite hobby?"):
 			security_question_field.send_keys(self.parser.getjsonkey(key="hobby"))
 		return security_button
+	def go_to_landing_page(self):
+		print("[+] Loading portal login page....")
+		self.driver.get(portal_url)
+
+		print("[+] Finding and filling username field....")
+		self.wait_for_element("span[class='sbuxheadertext']")
+		self.fill_and_submit_username_field()
+
+		print("[+] Finding and filling in two factor authentication...")
+		self.wait_for_element("span[class='bodytext lblKBQIndicator lblKBQIndicator1']")
+		self.fill_and_submit_two_factor_auth()
+
+		print("[+] Finding and filling in password field...")
+		self.wait_for_element("a[id='sbuxForgotPasswordURL']")
+		self.fill_and_submit_password_field()
+		self.wait_for_element("img[class='x-img rp-redprairie-logo x-img-default']")
 	def fill_and_submit_two_factor_auth(self):
 		self.find_two_factor_auth().click()
-	def wait_for_element(self, element_css_selector: str, delay=10):
+	def wait_for_element(self, element_css_selector: str, delay=20):
 		WebDriverWait(self.driver, delay).until(ec.presence_of_element_located((By.CSS_SELECTOR, element_css_selector)))
 	def kill_marionette(self):
 		self.driver.quit()

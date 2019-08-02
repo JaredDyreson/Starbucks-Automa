@@ -47,13 +47,16 @@ class starbucks_week():
 				l.append(ts.time_struct(combined_datetime_start_, combined_datetime_end_))
 		return l
 	def add_to_calendar(self):
-		# add each individual date to the Google Calendar API (from self.stitched_week)
+		# add each individual date using the Google Calendar API (from self.stitched_week)
 		# return: Nothing (void)
 		google_calendar_bot = add_events.GoogleEventHandler()
 		for element in self.stitched_week_:
 			google_calendar_bot.add_event(element)
+		#self.print_time_off()
 	def get_projected_week(self):
 		# given a week string range, create a list of datetime.date objects that will be combined in starbucks_week.stitch()
+		# return : list => datetime.dateime objects
+
 		date_range = []
 		split_week = self.projected_week_string_.split("-", 1)
 
@@ -67,8 +70,28 @@ class starbucks_week():
 			alpha+=timedelta(days=1)
 		return date_range
 	def print_contents(self):
-		for element in self.stitched_week_:
-			print(element.form_submit_body())
+		# print all useful information about current week 
+		# return : void
+
+		print("[+] Adding all events for week of {}...".format(self.projected_week_string_))
+		print("[+] Scheduled hours: {}".format(self.get_hours_scheduled()))
+		print("[+] Projected pay: ${}".format(self.get_projected_income()))
+	def get_time_off(self):
+		l = []
+		for index, (time_worked, is_working) in enumerate(self.scraped_week_.items()):
+			if not (is_working):
+
+				bare_week_indexed = self.projected_list_[index]
+
+				combined_datetime_start_ = datetime.datetime.combine(bare_week_indexed, datetime.datetime.now().time())
+				combined_datetime_end_ = datetime.datetime.combine(bare_week_indexed, datetime.datetime.now().time())
+
+				l.append(ts.time_struct(combined_datetime_start_, combined_datetime_end_))
+		return l
+	def print_time_off(self):
+		for element in self.get_time_off():
+			print("[+] Day off scheduled {}".format(element.gen_human_readable()))
+
 def assert_test():
 	from starbucksautoma import driver_utils as du
 	import json_parser as jp
