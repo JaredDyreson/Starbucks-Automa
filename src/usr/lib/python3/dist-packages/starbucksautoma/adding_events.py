@@ -40,6 +40,7 @@ from datetime import timedelta
 from starbucksautoma import time_struct
 
 from starbucksautoma import json_parser as jp
+from termcolor import colored
 # If modifying these scopes, delete the file token.pickle.
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -101,9 +102,11 @@ class GoogleEventHandler():
 		json_complient_event = json.loads(event.form_submit_body())
 		if(not self.get_free_busy(event)):
 			self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
-			print("[+] Sucessfully added event {}".format(event.google_date_added_string()))
+			success_message_ = "[+] Sucessfully added event {}".format(event.google_date_added_string())
+			print(colored(success_message_, 'green', 'on_grey'))
 		else:
-			print("[-] Event {} is already in the calendar".format(event.google_date_added_string()))
+			duplicate_event_message_ = "[-] Event {} is already in the calendar".format(event.google_date_added_string())
+			print(colored(duplicate_event_message_, 'red', 'on_grey'))
 
 def assert_test():
 	# this code needs to be manually changed if run at a later date

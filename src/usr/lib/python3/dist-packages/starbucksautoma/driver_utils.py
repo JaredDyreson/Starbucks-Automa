@@ -19,7 +19,7 @@ from selenium.common.exceptions import NoSuchElementException
 import time
 import os
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timedelta
 import getpass
 
 from starbucksautoma import json_parser as jp
@@ -33,41 +33,59 @@ class portal_driver():
 	def __init__(self, driver: webdriver, jparser=p):
 		self.driver = driver
 		self.parser = jparser
-	def scrape_week_merge_to_dict(self, from_page: list):
-		# accepts one week in the form of a list
-		# adding flags for each day in week to indicate for other functions
-		# ORDER MATTERS
-		# returns: OrderedDict
-		# key: time_struct with datetime.time objects as start and end
-		# value: flag if working 
-
-		a_dictionary = OrderedDict()
-		for day in from_page:
+	def filter_stitch(self):
+		# return one list of time_struct objects that will submitted to the Google Calendar
+		filtered_ = []
+		self.load_inner_html_page()
+		current_week_ = self.get_projected_week()
+		for index, day in enumerate(self.scrape_current_week()):
 			if("Coverage" in day.text):
 				base = day.text.split('Coverage')[0].strip()
 				start = base.split('-', 1)[0].strip()
 				end = base.split('-', 1)[1].strip()
-			
+
 				start = datetime.strptime(start, "%I:%M %p").time()
 				end = datetime.strptime(end, "%I:%M %p").time()
-				a_dictionary[ts.time_struct(start, end, time_off=False)] = True
-			#elif("Time Off" in day.text):
-			#	a_dictionary[ts.time_struct(time_off=True)] = False
-			else:
-				a_dictionary[ts.time_struct()] = False
-		return a_dictionary
+
+				bare_week_indexed = current_week_[index]
+
+				combined_datetime_start_ = datetime.combine(bare_week_indexed, start)
+				combined_datetime_end_ = datetime.combine(bare_week_indexed, end)
+				if(datetime.today().time().replace(hour=0, minute=0, second=0, microsecond=0) == combined_datetime_end_.time()):
+					combined_datetime_end_+=timedelta(days=1)
+
+				filtered_.append(ts.time_struct(combined_datetime_start_, combined_datetime_end_))
+		return filtered_
+	def get_projected_week(self):
+		# given a week string range, create a list of datetime.date objects that will be combined in starbucks_week.stitch()
+		# return : list => datetime.dateime objects
+
+		date_range = []
+		time.sleep(3)
+		split_week = self.get_current_week().split("-", 1)
+
+		s = split_week[0].strip()
+		e = split_week[1].strip()
+
+		alpha = datetime.strptime(s, "%m/%d/%Y")
+		omega = datetime.strptime(e, "%m/%d/%Y") 
+		while(omega >= alpha):
+			date_range.append(alpha)
+			alpha+=timedelta(days=1)
+		return date_range
 	def scrape_current_week(self):
-		# load the sub page of portal that will allow us access to the schedule itself
 		# return: list of driver web elements that contain days working
-
-		sub_html_link = self.driver.find_element_by_css_selector("iframe[class='x-component x-fit-item x-component-default']").get_attribute('src')
-		self.driver.get(sub_html_link)
-		time.sleep(8)
-		# improve this ^ with this code -> https://stackoverflow.com/questions/26566799/wait-until-page-is-loaded-with-selenium-webdriver-for-python
-		# webelement: id = 'gridview-1046-record-scheduledHoursRow' and data-recordid = 'scheduledHoursRow'
-
+		self.load_inner_html_page()
 		return self.driver.find_elements_by_xpath('//*[contains(@class,"x-grid-cell x-grid-td x-grid-cell-headerId-gridColumn")]')[:7]
-
+	def load_inner_html_page(self):
+	# load the sub page of portal that will allow us access to the schedule itself
+		try:
+			sub_html_link = self.driver.find_element_by_css_selector("iframe[class='x-component x-fit-item x-component-default']").get_attribute('src')
+			self.driver.get(sub_html_link)
+			# hardcoded time to wait is better in this case because either a loading animation can occur or a page error can be present
+			time.sleep(8)
+		except NoSuchElementException:
+			pass	
 	def find_partner_password_field(self):
 		# find and fill the final password field for login
 		# return: selenium web element which is the submit button
@@ -118,6 +136,8 @@ class portal_driver():
 		self.wait_for_element("a[id='sbuxForgotPasswordURL']")
 		self.fill_and_submit_password_field()
 		self.wait_for_element("img[class='x-img rp-redprairie-logo x-img-default']")
+	def go_to_next_week(self):
+		self.driver.find_element_by_css_selector("span[id='button-1029-btnIconEl']").click()
 	def fill_and_submit_two_factor_auth(self):
 		self.find_two_factor_auth().click()
 	def wait_for_element(self, element_css_selector: str, delay=20):

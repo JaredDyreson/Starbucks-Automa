@@ -22,10 +22,9 @@ class time_struct(object):
 	
 	# constructors
 
-	def __init__(self, start=datetime.datetime.today(), end=datetime.datetime.today(), time_off=False, summary="{}'s Work".format(parser.getjsonkey(key="name"))):
+	def __init__(self, start=datetime.datetime.today(), end=datetime.datetime.today(), summary="{}'s Work".format(parser.getjsonkey(key="name"))):
 		self.begin = start
 		self.end = end
-		self.time_off = time_off
 		self.summary = summary
 
 	@classmethod
@@ -61,7 +60,7 @@ class time_struct(object):
 
 	def is_midnight(self, time_object: datetime.datetime.time):
 		# takes in either self.begin or self.end and returns boolean
-		return datetime.time(0, 0) == time_object.time()
+		return datetime.time(0, 0) == time_object
 	def google_calendar_format(self):
 		# returns a list of string objects (len of 2) that can be passed to form_submit_body
 
@@ -71,7 +70,7 @@ class time_struct(object):
 	def get_time_elapsed(self):
 		# compute total time working
 		# return: float
-		return abs((self.end - self.begin).total_seconds()/3600)
+		return abs(float((self.end - self.begin).total_seconds()/3600))
 	
 	def form_submit_body(self, timezone=parser.getjsonkey(key="timezone"), location=parser.getjsonkey(key="store_location")):
 		# return a json body that will be used for submitting to the Google Calendar API

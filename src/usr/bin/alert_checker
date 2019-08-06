@@ -1,0 +1,47 @@
+#!/usr/bin/env python3.5
+
+from starbucksautoma import driver_utils as du
+from starbucksautoma import json_parser as jp
+
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.common.exceptions import NoSuchElementException
+
+import getpass
+import time
+from termcolor import colored
+
+username_ = getpass.getuser()
+
+portal_url_ = "http://partner.starbucks.com/"
+
+
+headless_ = Options()
+headless_.headless = True
+driver = webdriver.Firefox(options=headless_)
+p = jp.jsonparser("/home/{}/Applications/starbucks_automa/credentials/config.json".format(username_))
+
+print("[+] Loading portal login page....")
+driver.get(portal_url_)
+pd = du.portal_driver(driver, p)
+
+print("[+] Finding and filling username field....")
+pd.wait_for_element("span[class='sbuxheadertext']")
+pd.fill_and_submit_username_field()
+
+print("[+] Finding and filling in two factor authentication...")
+pd.wait_for_element("span[class='bodytext lblKBQIndicator lblKBQIndicator1']")
+pd.fill_and_submit_two_factor_auth()
+
+print("[+] Finding and filling in password field...")
+pd.wait_for_element("a[id='sbuxForgotPasswordURL']")
+pd.fill_and_submit_password_field()
+pd.wait_for_element("div[id='DeltaPlaceHolderMain']")
+print("[+] Loaded homepage....")
+time.sleep(3)
+try:
+	alerts = pd.driver.find_element_by_css_selector("table[class='alert-table']").text
+except NoSuchElementException:
+	alerts = "There are no alerts to be found"
+print(colored("Message: {}".format(alerts), 'red'))
+pd.kill_marionette()
