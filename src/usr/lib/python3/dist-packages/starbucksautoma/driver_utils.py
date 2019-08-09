@@ -24,15 +24,17 @@ import getpass
 
 from starbucksautoma import json_parser as jp
 from starbucksautoma import time_struct as ts
+from starbucksautoma import db_handler as db
 
 username_ = getpass.getuser()
 portal_url = "https://sbux.co/teamworks"
-p = jp.jsonparser("/home/{}/Applications/starbucks_automa/credentials/config.json".format(username_))
+lite = db.lite_handler("credentials", "/home/{}/Applications/starbucks_automa/credentials/config.db".format(username_))
+
 
 class portal_driver():
-	def __init__(self, driver: webdriver, jparser=p):
+	def __init__(self, driver: webdriver, db_handler=lite):
 		self.driver = driver
-		self.parser = jparser
+		self.lite_handler = db_handler
 	def filter_stitch(self):
 		# return one list of time_struct objects that will submitted to the Google Calendar
 		filtered_ = []
@@ -90,7 +92,7 @@ class portal_driver():
 		# find and fill the final password field for login
 		# return: selenium web element which is the submit button
 		password_field = self.driver.find_element_by_css_selector("input[type='password']")
-		password_field.send_keys(self.parser.getjsonkey(key="password"))
+		password_field.send_keys(self.lite_handler.get_value("password"))
 		return self.driver.find_element_by_css_selector("input[type='submit']")
 
 	def fill_and_submit_password_field(self):
@@ -104,7 +106,7 @@ class portal_driver():
 		except NoSuchElementException:
 			time.sleep(4)
 			username_field = self.driver.find_element_by_css_selector("input[class='textbox txtUserid']")
-		username_field.send_keys(self.parser.getjsonkey(key="username"))
+		username_field.send_keys(self.lite_handler.get_value("username"))
 		return self.driver.find_element_by_css_selector("input[type='submit']")
 	def fill_and_submit_username_field(self):
 		self.find_partner_username().click()
@@ -115,10 +117,10 @@ class portal_driver():
 		security_question = self.driver.find_element_by_css_selector("span[class='bodytext lblKBQ lblKBQ1']")
 		security_question_field = self.driver.find_element_by_css_selector("input[class='textbox tbxKBA tbxKBA1']")
 		security_button = self.driver.find_element_by_css_selector("input[type='submit']")
-		if(security_question.text == "What city were you born in?"):
-			security_question_field.send_keys(self.parser.getjsonkey(key="hometown"))
-		elif(security_question.text == "What is your favorite hobby?"):
-			security_question_field.send_keys(self.parser.getjsonkey(key="hobby"))
+		if(security_question.text == self.lite_handler.get_value("sec_question_one")):
+			security_question_field.send_keys(self.lite_handler.get_value("sec_answer_one"))
+		else:
+			security_question_field.send_keys(self.lite_handler.get_value("sec_answer_two"))
 		return security_button
 	def go_to_landing_page(self):
 		print("[+] Loading portal login page....")
