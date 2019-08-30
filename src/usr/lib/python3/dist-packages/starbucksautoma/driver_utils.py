@@ -21,6 +21,7 @@ import os
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import getpass
+import re
 
 from starbucksautoma import json_parser as jp
 from starbucksautoma import time_struct as ts
@@ -38,14 +39,21 @@ class portal_driver():
 	def filter_stitch(self):
 		# return one list of time_struct objects that will submitted to the Google Calendar
 		filtered_ = []
+		is_training = False
 		self.load_inner_html_page()
 		current_week_ = self.get_projected_week()
 		for index, day in enumerate(self.scrape_current_week()):
 			if("Coverage" in day.text):
-				base = day.text.split('Coverage')[0].strip()
-				start = base.split('-', 1)[0].strip()
-				end = base.split('-', 1)[1].strip()
+				if("Training" in day.text):
+					base = day.text.split()
+					start = "{} {}".format(base[0], base[1])
+					end = "{} {}".format(base[9], base[10])
+					is_training = True
+				else: 
+					start = day.text.split("Coverage")[0].strip().split("-")[0].strip()
+					end = day.text.split("Coverage")[0].strip().split("-")[1].strip()
 
+				
 				start = datetime.strptime(start, "%I:%M %p").time()
 				end = datetime.strptime(end, "%I:%M %p").time()
 
@@ -55,8 +63,9 @@ class portal_driver():
 				combined_datetime_end_ = datetime.combine(bare_week_indexed, end)
 				if(datetime.today().time().replace(hour=0, minute=0, second=0, microsecond=0) == combined_datetime_end_.time()):
 					combined_datetime_end_+=timedelta(days=1)
-
-				filtered_.append(ts.time_struct(combined_datetime_start_, combined_datetime_end_))
+				event = ts.time_struct(combined_datetime_start_, combined_datetime_end_)
+				if(is_training): event.summary = "Jared's Work (Training Included)"
+				filtered_.append(event)
 		return filtered_
 	def get_projected_week(self):
 		# given a week string range, create a list of datetime.date objects that will be combined in starbucks_week.stitch()
