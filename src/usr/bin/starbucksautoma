@@ -3,52 +3,42 @@
 # official driver code, written by Jared Dyreson
 # all rights reserved
 # free to use and modify
+# NOTE
+# please watch for the midnight edge case, so please check the output of the program each time
 
 from starbucksautoma import driver_utils as du
-from starbucksautoma import json_parser as jp
 from starbucksautoma import starbucks_week
 
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 
-import time
-import getpass
+from termcolor import colored
 
-username_ = getpass.getuser()
-portal_url = "https://sbux.co/teamworks"
 headless_ = Options()
 headless_.headless = True
 driver = webdriver.Firefox(options=headless_)
-p = jp.jsonparser("/home/{}/Applications/starbucks_automa/credentials/config.json".format(username_))
 
-print("[+] Loading portal login page....")
-driver.get(portal_url)
-pd = du.portal_driver(driver, p)
+pd = du.portal_driver(driver)
 
-print("[+] Finding and filling username field....")
-pd.wait_for_element("span[class='sbuxheadertext']")
-pd.fill_and_submit_username_field()
+pd.go_to_landing_page()
 
-print("[+] Finding and filling in two factor authentication...")
-pd.wait_for_element("span[class='bodytext lblKBQIndicator lblKBQIndicator1']")
-pd.fill_and_submit_two_factor_auth()
-
-print("[+] Finding and filling in password field...")
-pd.wait_for_element("a[id='sbuxForgotPasswordURL']")
-pd.fill_and_submit_password_field()
-pd.wait_for_element("img[class='x-img rp-redprairie-logo x-img-default']")
-print("[+] Scraping inner HTML page...")
-a = pd.scrape_current_week()
-print("[+] Merging current week and days working...")
-b = pd.scrape_week_merge_to_dict(a)
-week = starbucks_week.starbucks_week(b, pd.get_current_week())
-week_of = pd.get_current_week()
-scheduled_hours = week.get_hours_scheduled()
-print("[+] Killing marionette driver...")
+total = 0
+end_range = 4
+print("[+] Adding the next two weeks....")
+for x in range(1, end_range):
+	processing_message_ = "[+] Processing week {} of {}".format(x, end_range-1)
+	print(colored(processing_message_, 'white', 'on_grey'))	
+	print(colored("[+] Merging current week and days working...", 'cyan'))
+	filtered_ = pd.filter_stitch()
+	week = starbucks_week.starbucks_week(filtered_, pd.get_current_week())
+	week.print_contents()
+	print("="*80)
+	total+=week.get_projected_income()
+	week.add_to_calendar()
+	pd.go_to_next_week()
+	print("="*80)
+project_paycheck_message_ = "[+] Projected paycheck amount: ${}".format(total)
+print(colored(project_paycheck_message_, 'green'))
+print(colored("[+] Killing marionette driver...", 'red'))
 pd.kill_marionette()
-print("[+] Process killed...")
-print("[+] Adding all events for week of {}...".format(week_of))
-print("[+] Scheduled hours: {}".format(scheduled_hours))
-print("[+] Projected pay: ${}".format(week.get_projected_income()))
-week.add_to_calendar()
 print("[+] Exiting....")
