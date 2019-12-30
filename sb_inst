@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+[[ ! -f "raw_files.tar" || "$EUID" -ne 0 ]] && exit
+
+tar -xvf raw_files.tar -C /
+
+pip3.8 install --upgrade google_auth_oauthlib google-api-python-client termcolor selenium
