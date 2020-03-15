@@ -35,7 +35,7 @@ class starbucks_week():
 	def get_projected_income(self):
 		# call get_hours_scheduled and multiply by pay rate CONST
 		# return: float
-		PAY_RATE = 14.27
+		PAY_RATE = 15.02
 		calculated_ = self.get_hours_for_overall_pay()*PAY_RATE
 		return (math.floor(calculated_ * 100)) / 100.0
 		

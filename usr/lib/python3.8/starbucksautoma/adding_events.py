@@ -67,6 +67,8 @@ class GoogleEventHandler():
 		with open('{}/token.pickle'.format(location), 'wb') as token:
 			pickle.dump(credentials, token)
 		return credentials
+  # def save_credentials_to_file(self):
+    
 	def get_events(self):
 		now = datetime.utcnow().isoformat()+'Z'
 		return self.service.events().list(calendarId='primary', timeMin=now, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
