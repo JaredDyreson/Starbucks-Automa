@@ -28,7 +28,7 @@ from starbucksautoma import time_struct as ts
 from starbucksautoma import db_handler as db
 
 username_ = getpass.getuser()
-portal_url = "https://sbux.co/teamworks"
+portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"
 lite = db.lite_handler("credentials", "/home/{}/Applications/starbucks_automa/credentials/config.db".format(username_))
 
 
