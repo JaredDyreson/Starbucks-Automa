@@ -7,6 +7,7 @@ from pprint import pprint as pp
 import json
 
 event_handler = GoogleEventHandler()
+event_name = "Jared's Work"
 
 def get_current_week() -> list:
   """
@@ -53,7 +54,7 @@ def get_work_week(summary: str):
     return work_week
 
 def clear_work_week():
-    for element in get_work_week("Jared's Work"):
+    for element in get_work_week(event_name):
         try:
           event_handler.service.events().delete(calendarId='primary', eventId=element['event_id']).execute()
         except Exception as error:
@@ -64,16 +65,21 @@ def check_if_working(day: datetime, summary: str) -> bool:
       if(element['summary'] == summary): return element['start']['dateTime'], element['end']['dateTime'], element['id'], True
     return None, None, None, False
 
-start, end, event_id, status = check_if_working(datetime.today(), "Jared's Work")
-original_ = time_struct.from_string(start, end, "Jared's Work")
+"""
+Check if the event is in the calendar or not
+"""
 
-s = datetime.today().replace(hour=16, minute=0, second=0)
+def add_events(event: time_struct):
+  start, end, event_id, status = check_if_working(event.begin.replace(hour=0, minute=0, second=0, microsecond=0), event.summary)
+  original_ = time_struct.from_string(start, end, event.summary)
+  if not(original_ == event):
+    json_complient_event = json.loads(most_recent.form_submit_body())
+    event_handler.service.events().insert(calendarId='primary', body=json_complient_event).execute()
+    event_handler.service.events().delete(calendarId='primary', eventId=event_id).execute()
+
+
+s = datetime.today().replace(hour=15, minute=0, second=0)
 e = datetime.today().replace(hour=19, minute=0, second=0)
 
-most_recent = time_struct(s, e, "Jared's Work")
-if not(original_ == most_recent):
-  json_complient_event = json.loads(most_recent.form_submit_body())
-  event_handler.service.events().insert(calendarId='primary', body=json_complient_event).execute()
-  event_handler.service.events().delete(calendarId='primary', eventId=event_id).execute()
-else:
-  print("not updating the event")
+most_recent = time_struct(s, e, event_name)
+add_events(most_recent)
