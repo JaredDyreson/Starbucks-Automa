@@ -96,28 +96,25 @@ class GoogleEventHandler():
       for day in get_current_week():
         response = get_event_day(day)
         for i, element in enumerate(response):
-          summary = element['summary']
-          start = element['start']['dateTime']
-          end = element['end']['dateTime']
-          event_id = element['id']
-          if(summary == summary):
+          summary_ = element['summary']
+          if(summary == summary_):
             work_day = {
               'summary': summary,
-              'start': start,
-              'end': end,
-              'event_id': event_id
+              'start': element['start']['dateTime'],
+              'end': element['end']['dateTime'],
+              'event_id': element['id']
             }
             work_week.append(work_day)
       return work_week
 
-  def remove_event(self, event_id: str):
+  def remove_event(self, event_id: str) -> None:
       try: event_handler.service.events().delete(calendarId='primary', eventId=event_id).execute()
       except Exception as error: print("got an error: {}".format(error))
 
-  def clear_work_week(self):
+  def clear_work_week(self) -> None:
       for element in self.get_event_week(event_name): self.remove_event(element['id'])
 
-  def check_event_presence(self, day: datetime, summary: str) -> bool:
+  def check_event_presence(self, day: datetime, summary: str):
       day_events = self.get_event_day(day)
       overlap_ = []
       for element in day_events:
@@ -134,7 +131,7 @@ class GoogleEventHandler():
       return overlap_[0]['start'], overlap_[0]['end'], overlap_[0]['event_id'] , True
 
 
-  def add_events(self, event: time_struct):
+  def add_events(self, event: time_struct) -> None:
     start, end, event_id, status = self.check_event_presence(event.begin, event.summary)
     if(start is None and end is None):
       json_complient_event = json.loads(event.form_submit_body())

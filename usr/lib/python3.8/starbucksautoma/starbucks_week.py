@@ -9,7 +9,6 @@ from collections import OrderedDict
 import math
 from termcolor import colored
 
-from starbucksautoma import adding_events as add_events
 from starbucksautoma import time_struct as ts
 from starbucksautoma import event_handler
 
