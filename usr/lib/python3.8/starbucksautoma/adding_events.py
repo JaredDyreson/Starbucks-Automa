@@ -36,7 +36,7 @@ from pprint import pprint as pp
 import getpass
 from starbucksautoma import time_struct as ts
 import re
-from datetime import timedelta
+from datetime import timedelta, date
 from starbucksautoma import time_struct
 
 from starbucksautoma import json_parser as jp
@@ -72,6 +72,11 @@ class GoogleEventHandler():
 	def get_events(self):
 		now = datetime.utcnow().isoformat()+'Z'
 		return self.service.events().list(calendarId='primary', timeMin=now, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
+  # def get_current_day_events(self):
+    # today = datetime.today().replace(hour=0, minute=0, second=0)
+    # next_day = '{}Z'.format((today+timedelta(days=1)).isoformat())
+    # today = '{}Z'.format(today.isoformat())
+		# return self.service.events().list(calendarId='primary', timeMin=today, timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
 	def get_free_busy(self, event: time_struct, calendar_id='primary', timezone=parser.getjsonkey(key="timezone")):
 		# NOTE
 		# FALSE: you are free

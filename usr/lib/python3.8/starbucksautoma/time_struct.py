@@ -32,13 +32,20 @@ class time_struct(object):
         self.summary = summary
 
     @classmethod
+    def from_string(cls, s: str, e: str, summary: str):
+        s = datetime.datetime.strptime(s[:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
+        e = datetime.datetime.strptime(e[:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
+        return cls(s, e, summary) 
+
+    @classmethod
     # get start and end from a dictionary/json responses but neglecting the summary tag
     def from_dict(cls, body: dict):
         # this function is broken because of daylight savings. figure out how this should work
-        s = datetime.datetime.strptime(body['start'][:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
-        e = datetime.datetime.strptime(body['end'][:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
+        return self.from_string(body['start'], body['end'], body['summary'])
+        # s = datetime.datetime.strptime(body['start'][:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
+        # e = datetime.datetime.strptime(body['end'][:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
 
-        return cls(s, e)
+        # return cls(s, e)
     @classmethod
     # get start and end from a dictionary/json response including the summary to allow for comparing results from free busy
     def from_freebusy(cls, response: dict):
@@ -50,7 +57,6 @@ class time_struct(object):
 
         summary = response['summary']
         return cls(s, e, summary)
-
     def __eq__(self, other):
         # check if the json event data is the same
         # return: boolean
@@ -65,6 +71,14 @@ class time_struct(object):
         # dir(self): returns all of the possible attributes of this class
         # returns: hash of time_struct class
         return hash(",".join(dir(self)))
+
+    def __repr__(self):
+        return "Summary: {}\nStart: {}\nEnd: {}".format(
+                self.summary,
+                self.gen_human_readable(self.begin),
+                self.gen_human_readable(self.end)
+            )
+
 
     def is_midnight(self, time_object: datetime.datetime.time):
         # takes in either self.begin or self.end and returns boolean
