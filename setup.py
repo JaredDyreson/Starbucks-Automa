@@ -31,7 +31,7 @@ setup(
       'google_auth_oauthlib',
       'google-api-python-client',
       'termcolor',
-      'selemium'
+      'selenium'
     ],
     include_package_data=True,
     classifiers=['Programming Language :: Python :: 3.8']
