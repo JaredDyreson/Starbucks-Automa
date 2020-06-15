@@ -23,9 +23,9 @@ from datetime import datetime, timedelta
 import getpass
 import re
 
-from starbucksautoma import json_parser as jp
-from starbucksautoma import time_struct as ts
-from starbucksautoma import db_handler as db
+from StarbucksAutoma import json_parser as jp
+from StarbucksAutoma import time_struct as ts
+from StarbucksAutoma import db_handler as db
 
 username_ = getpass.getuser()
 portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"

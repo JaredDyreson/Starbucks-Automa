@@ -34,12 +34,12 @@ from google.auth.transport.requests import Request
 import json
 from pprint import pprint as pp
 import getpass
-from starbucksautoma import time_struct as ts
+from StarbucksAutoma import time_struct as ts
 import re
 from datetime import timedelta, date
-from starbucksautoma import time_struct
+from StarbucksAutoma import time_struct
 
-from starbucksautoma import json_parser as jp
+from StarbucksAutoma import json_parser as jp
 from termcolor import colored
 # If modifying these scopes, delete the file token.pickle.
 

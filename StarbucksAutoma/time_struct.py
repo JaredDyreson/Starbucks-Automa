@@ -8,7 +8,7 @@ from datetime import timezone
 import json
 import time
 import collections
-from starbucksautoma import json_parser as jp
+from StarbucksAutoma import json_parser as jp
 import pytz
 import getpass
 

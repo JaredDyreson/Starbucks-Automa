@@ -9,8 +9,8 @@ from collections import OrderedDict
 import math
 from termcolor import colored
 
-from starbucksautoma import time_struct as ts
-from starbucksautoma import event_handler
+from StarbucksAutoma import time_struct as ts
+from StarbucksAutoma import event_handler
 
 class starbucks_week():
   def __init__(self, current_week: list, current_week_str: str):
@@ -56,7 +56,7 @@ class starbucks_week():
     print(colored(projected_pay_message_, 'green'))
 
 def assert_test():
-  from starbucksautoma import driver_utils as du
+  from StarbucksAutoma import driver_utils as du
   import json_parser as jp
 
   from selenium import webdriver
