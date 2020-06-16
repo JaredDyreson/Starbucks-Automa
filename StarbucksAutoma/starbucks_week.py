@@ -12,6 +12,8 @@ from termcolor import colored
 from StarbucksAutoma import time_struct as ts
 from StarbucksAutoma import event_handler
 
+truncate = lambda x, n: math.trunc((10**n)*x)/(10**n)
+
 class starbucks_week():
   def __init__(self, current_week: list, current_week_str: str):
     self.current_week_ = current_week
@@ -37,7 +39,8 @@ class starbucks_week():
     # return: float
     PAY_RATE = 15.02
     calculated_ = self.get_hours_for_overall_pay()*PAY_RATE
-    return (math.floor(calculated_ * 100)) / 100.0
+    return truncate(calculated_, 2)
+    # return (math.floor(calculated_ * 100)) / 100.0
     
   def add_to_calendar(self):
     # add each individual date using the Google Calendar API (from self.stitched_week)

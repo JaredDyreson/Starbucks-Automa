@@ -31,7 +31,6 @@ username_ = getpass.getuser()
 portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"
 lite = db.lite_handler("credentials", "/home/{}/Applications/starbucks_automa/credentials/config.db".format(username_))
 
-
 class portal_driver():
   def __init__(self, driver: webdriver, db_handler=lite):
     self.driver = driver
