@@ -24,7 +24,7 @@ class lite_handler():
       self.cursor.execute(initial_creation_command_)
       self.connection.commit()
     except sqlite3.OperationalError:
-    pass
+      pass
   def quote_elements(self, original_list: list):
     return ['"{}"'.format(element) for element in original_list]
   def add_entry(self, key_list: list, value_list: list):
