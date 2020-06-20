@@ -29,11 +29,11 @@ class lite_handler():
     def quote_elements(self, original_list: list):
         return ['"{}"'.format(element) for element in original_list]
 
-    def add_entry(self, key_list: list, value_list: list):
+    def add_entry(self, payload: dict):
         databse_entry_command_ = "INSERT INTO {} ({}) VALUES ({});".format(
           self.table_name,
-          ", ".join(self.quote_elements(key_list)),
-          ", ".join(self.quote_elements(value_list))
+          ", ".join(self.quote_elements(list(payload.keys()))),
+          ", ".join(self.quote_elements(list(payload.values())))
         )
         try:
             self.cursor.execute(databse_entry_command_)
@@ -43,4 +43,10 @@ class lite_handler():
 
     def get_value(self, key: str):
         self.cursor.execute("SELECT {} FROM {}".format(key, self.table_name))
-        return self.cursor.fetchone()[0]
+        try:
+            return self.cursor.fetchone()[0]
+        except TypeError:
+            return []
+
+    def check_entry(self, column: str):
+        return len(self.get_value(column)) >= 1

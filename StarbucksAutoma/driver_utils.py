@@ -15,7 +15,7 @@ import os
 from datetime import datetime, timedelta, time
 import getpass
 
-from StarbucksAutoma import time_struct as ts
+from StarbucksAutoma import event_packet as ts
 from StarbucksAutoma import db_handler as db
 
 username_ = getpass.getuser()
@@ -31,7 +31,7 @@ class portal_driver():
 
     def filter_stitch(self):
         """
-        Create a list of time_struct objects that will be submitted
+        Create a list of event_packet objects that will be submitted
         to Google Calendar via an API request
         """
 
@@ -68,7 +68,7 @@ class portal_driver():
         combined_datetime_end_ = datetime.combine(bare_week_indexed, end)
         if(time() == combined_datetime_end_.time()):
             combined_datetime_end_ += timedelta(days=1)
-        event = ts.time_struct(combined_datetime_start_, combined_datetime_end_)
+        event = ts.event_packet(combined_datetime_start_, combined_datetime_end_)
         if(is_training):
             event.summary = "Jared's Work (Training Included)"
         filtered_.append(event)
