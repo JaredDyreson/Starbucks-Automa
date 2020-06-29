@@ -22,7 +22,7 @@ username_ = getpass.getuser()
 application_path = "/etc/StarbucksAutoma/credentials/config.db"
 portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"
 lite = db.lite_handler("credentials", application_path)
-
+print(lite_handler.get_value("username"))
 
 class portal_driver():
     def __init__(self, driver: webdriver, db_handler=lite):
