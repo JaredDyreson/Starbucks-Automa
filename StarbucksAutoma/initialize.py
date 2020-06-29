@@ -4,6 +4,7 @@ import os
 from getpass import getpass
 from exceptions import *
 import json
+import subprocess
 
 """
 This portion must be run as root to ensure that file permissions are properly set
@@ -32,6 +33,9 @@ class initalizer():
         if(os.name == "nt"):
             raise EnviornmentException("Windows not supported")
 
+    def currently_logged_in(self) -> list:
+        return [user for user in subprocess.check_output(["users"], encoding="utf-8").split('\n') if user]
+
     def make_conf_structure(self) -> None:
         if(not os.path.exists(self.configuration_dir)):
             os.mkdir(self.configuration_dir)
@@ -39,29 +43,39 @@ class initalizer():
             os.mkdir(os.path.join(self.configuration_dir, path))
 
     def make_user_config(self) -> None:
-        username = input("Starbucks Username: ")
-        password = getpass()
-        name = input("Your first name: ")
-        sec_one = getpass("2FA Question 1 Answer: ")
-        sec_two = getpass("2FA Question 2 Answer: ")
-        tz = os.popen("timedatectl status | awk '/Time zone/ {print $3}'").read().strip()
-        location = input("Store location: ")
+        # username = input("Starbucks Username: ")
+        # password = getpass()
+        # name = input("Your first name: ")
 
-        print(username, password, sec_one, sec_two, tz)
+        # sec_question_one = input("2FA Question 1: ")
+        # sec_one = getpass("2FA Question 1 Answer: ")
 
-        payload = {
-            "username": username,
-            "password": password,
-            "name": name,
-            "sec_one_answer": sec_one,
-            "sec_two_answer": sec_two,
-            "timezone": tz,
-            "store_location": location
-        }
+        # sec_question_two = input("2FA Question 2: ")
+        # sec_two = getpass("2FA Question 2 Answer: ")
+        # tz = os.popen("timedatectl status | awk '/Time zone/ {print $3}'").read().strip()
+        # location = input("Store location: ")
+
+        # payload = {
+            # "username": username,
+            # "password": password,
+            # "name": name,
+            # "sec_one_question": sec_question_one,
+            # "sec_one_answer": sec_one,
+            # "sec_two_question": sec_two_question,
+            # "sec_two_answer": sec_two,
+            # "timezone": tz,
+            # "store_location": location
+        # }
+
         with open("{}/credentials/config.json".format(self.configuration_dir), "w") as fp:
-            json.dump(payload, fp)
+            # json.dump(payload, fp)
+            json.dump({}, fp)
         os.system("chmod 600 {}/credentials/config.json".format(self.configuration_dir))
+        os.system("chown {}:root {}/credentials/config.json".format(
+                self.currently_logged_in()[0],
+                self.configuration_dir
+        ))
 
 
 init = initalizer()
-init.make_user_config()
+# init.make_user_config()

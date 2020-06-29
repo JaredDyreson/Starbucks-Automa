@@ -27,6 +27,9 @@ setup(
     url='https://github.com/JaredDyreson/starbucks_automa_production',
     license='GNU GPL-3.0',
     packages=[PKG_NAME],
+    dependency_links = [
+    'https://github.com/JaredDyreson/sudo_execute.git'
+    ],
     install_requires = [
       'google_auth_oauthlib',
       'google-api-python-client',
