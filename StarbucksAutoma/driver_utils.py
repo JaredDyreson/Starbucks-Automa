@@ -17,17 +17,18 @@ import getpass
 
 from StarbucksAutoma import event_packet as ts
 from StarbucksAutoma import db_handler as db
+from StarbucksAutoma.json_parser import jsonparser
 
 username_ = getpass.getuser()
-application_path = "/etc/StarbucksAutoma/credentials/config.db"
+application_path = "/etc/StarbucksAutoma/credentials/config.json"
 portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"
-lite = db.lite_handler("credentials", application_path)
-print(lite.get_value("username"))
+jp = jsonparser(application)
+
 
 class portal_driver():
-    def __init__(self, driver: webdriver, db_handler=lite):
+    def __init__(self, driver: webdriver, jparser=jp):
         self.driver = driver
-        self.lite_handler = db_handler
+        self.jp = jparser
 
     def filter_stitch(self):
         """
@@ -126,7 +127,7 @@ class portal_driver():
 
         password_field = self.driver.find_element_by_css_selector(
                         "input[type='password']")
-        password_field.send_keys(self.lite_handler.get_value("password"))
+        password_field.send_keys(self.jp.get_value("password"))
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
     def fill_and_submit_password_field(self):
@@ -145,7 +146,7 @@ class portal_driver():
             time.sleep(4)
             username_field = self.driver.find_element_by_css_selector(
                             "input[class='textbox txtUserid']")
-        username_field.send_keys(self.lite_handler.get_value("username"))
+        username_field.send_keys(self.jp.get_value("username"))
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
     def fill_and_submit_username_field(self):
@@ -164,12 +165,12 @@ class portal_driver():
         security_button = self.driver.find_element_by_css_selector(
                             "input[type='submit']")
 
-        if(security_question.text == self.lite_handler.get_value("sec_question_one")):
+        if(security_question.text == self.jp.get_value("sec_question_one")):
             security_question_field.send_keys(
-                self.lite_handler.get_value("sec_answer_one"))
+                self.jp.get_value("sec_answer_one"))
         else:
             security_question_field.send_keys(
-                self.lite_handler.get_value("sec_answer_two"))
+                self.jp.get_value("sec_answer_two"))
         return security_button
 
     def go_to_landing_page(self):

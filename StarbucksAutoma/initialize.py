@@ -5,6 +5,8 @@ from getpass import getpass
 from exceptions import *
 import json
 import subprocess
+from sudo_execute.sudo_execute import sudo_execute
+import json_parser
 
 """
 This portion must be run as root to ensure that file permissions are properly set
@@ -42,40 +44,43 @@ class initalizer():
         for path in self.sub_dirs:
             os.mkdir(os.path.join(self.configuration_dir, path))
 
+    def chg_permissions(self):
+        os.system("chmod 600 {}/credentials/config.json".format(self.configuration_dir))
+    
+    def read_contents(self):
+        with open("{}/credentials/config.json".format(self.configuration_dir)) as fp:
+            return json.load(fp)
+
     def make_user_config(self) -> None:
-        # username = input("Starbucks Username: ")
-        # password = getpass()
-        # name = input("Your first name: ")
+        cu = self.currently_logged_in()[0]
 
-        # sec_question_one = input("2FA Question 1: ")
-        # sec_one = getpass("2FA Question 1 Answer: ")
+        username = input("Starbucks Username: ")
+        password = getpass()
 
-        # sec_question_two = input("2FA Question 2: ")
-        # sec_two = getpass("2FA Question 2 Answer: ")
-        # tz = os.popen("timedatectl status | awk '/Time zone/ {print $3}'").read().strip()
-        # location = input("Store location: ")
+        sec_question_one = input("2FA Question 1: ")
+        sec_one = getpass("2FA Question 1 Answer: ")
 
-        # payload = {
-            # "username": username,
-            # "password": password,
-            # "name": name,
-            # "sec_one_question": sec_question_one,
-            # "sec_one_answer": sec_one,
-            # "sec_two_question": sec_two_question,
-            # "sec_two_answer": sec_two,
-            # "timezone": tz,
-            # "store_location": location
-        # }
+        sec_question_two = input("2FA Question 2: ")
+        sec_two = getpass("2FA Question 2 Answer: ")
+        tz = os.popen("timedatectl status | awk '/Time zone/ {print $3}'").read().strip()
+        location = input("Store location: ")
+
+        payload = {
+            "username": username,
+            "password": password,
+            "name": cu.capitalize(),
+            "sec_one_question": sec_question_one,
+            "sec_one_answer": sec_one,
+            "sec_two_question": sec_question_two,
+            "sec_two_answer": sec_two,
+            "timezone": tz,
+            "store_location": location
+        }
 
         with open("{}/credentials/config.json".format(self.configuration_dir), "w") as fp:
-            # json.dump(payload, fp)
-            json.dump({}, fp)
-        os.system("chmod 600 {}/credentials/config.json".format(self.configuration_dir))
-        os.system("chown {}:root {}/credentials/config.json".format(
-                self.currently_logged_in()[0],
-                self.configuration_dir
-        ))
+            json.dump(payload, fp)
 
+        self.chg_permissions()
+        jay = json_parser.jsonparser(self.read_contents())
+        sudo_execute().swap_user(cu)
 
-init = initalizer()
-# init.make_user_config()
