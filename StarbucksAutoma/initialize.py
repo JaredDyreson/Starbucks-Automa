@@ -2,11 +2,14 @@
 
 import os
 from getpass import getpass
-from exceptions import *
+from StarbucksAutoma.exceptions import *
 import json
 import subprocess
 from sudo_execute.sudo_execute import sudo_execute
-import json_parser
+
+import packaging.version
+import pathlib
+from StarbucksAutoma.version import __version__ as __sbversion__
 
 """
 This portion must be run as root to ensure that file permissions are properly set
@@ -16,9 +19,87 @@ Timezone support is not included for Windows, please consult
 the list of timezones dumped from timedatectl on the StarbucksAutoma wiki
 """
 
+VERSION = packaging.version.parse(__sbversion__)
+STATE_PATH = pathlib.Path("/etc/StarbucksAutoma/state.json")
 
-class initalizer():
-    def __init__(self):
+"""
+Pulled from the Tuffix project
+AUTHOR: Kevin Wortman
+"""
+
+# Configuration defined at build-time. This is a class so that we can
+# unit test with dependency injection.
+class BuildConfig:
+    # version: packaging.Version for the currently-running tuffix
+    # state_path: pathlib.Path holding the path to state.json
+    def __init__(self,
+                 version,
+                 state_path):
+        if not (isinstance(version, packaging.version.Version) and
+                isinstance(state_path, pathlib.Path) and
+                state_path.suffix == '.json'):
+            raise ValueError
+        self.version = version
+        self.state_path = state_path
+
+DEFAULT_BUILD_CONFIG = BuildConfig(VERSION, STATE_PATH)
+
+class State:
+    # build_config: a BuildConfig object
+    # version: packaging.Version for the StarbucksAutoma version that created this state
+    # installed: list of strings representing the codewords that are currently installed
+    def __init__(self, build_config, version, configured):
+        if not (isinstance(build_config, BuildConfig) and
+                isinstance(version, packaging.version.Version) and
+                isinstance(configured, bool)):
+            raise ValueError
+        self.build_config = build_config
+        self.version = version
+        self.is_configured = configured
+
+    # Write this state to disk.
+    def write(self):
+        with open(self.build_config.state_path, 'w') as f:
+            document = {
+                'version' : str(self.version),
+                'configured' : self.is_configured
+            }
+            json.dump(document, f)
+
+# Reads the current state.
+# build_config: A BuildConfig object.
+# raises EnvironmentError if there is a problem.
+def read_state(build_config):
+    if not isinstance(build_config, BuildConfig):
+        raise ValueError
+    try:
+        with open(build_config.state_path) as f:
+            document = json.load(f)
+            return State(build_config,
+                         packaging.version.Version(document['version']),
+                         document['configured'])
+    except OSError:
+        raise EnvironmentError('state file not found, you must run $ starbucksautoma init')
+    except json.JSONDecodeError:
+        raise EnvironmentError('state file JSON is corrupted')
+    except packaging.version.InvalidVersion:
+        raise EnvironmentError('version number in state file is invalid')
+    except KeyError:
+        raise EnvironmentError('state file JSON is missing required keys')
+    except ValueError:
+        raise EnvironmentError('state file JSON has malformed values')
+
+
+"""
+End Pull
+"""
+
+class initializer():
+    def __init__(self, build_config):
+        if not(isinstance(build_config, BuildConfig)):
+            raise ValueError
+
+        self.build_config = build_config
         self.configuration_dir = "/etc/StarbucksAutoma"
         self.sub_dirs = ["configuration",
                         "credentials",
@@ -52,35 +133,43 @@ class initalizer():
             return json.load(fp)
 
     def make_user_config(self) -> None:
+        state = read_state(self.build_config)   
+        if(state.is_configured):
+            raise EnvironmentError("already configured")
+
         cu = self.currently_logged_in()[0]
 
-        username = input("Starbucks Username: ")
-        password = getpass()
+        # username = input("Starbucks Username: ")
+        # password = getpass()
 
-        sec_question_one = input("2FA Question 1: ")
-        sec_one = getpass("2FA Question 1 Answer: ")
+        # sec_question_one = input("2FA Question 1: ")
+        # sec_one = getpass("2FA Question 1 Answer: ")
 
-        sec_question_two = input("2FA Question 2: ")
-        sec_two = getpass("2FA Question 2 Answer: ")
-        tz = os.popen("timedatectl status | awk '/Time zone/ {print $3}'").read().strip()
-        location = input("Store location: ")
+        # sec_question_two = input("2FA Question 2: ")
+        # sec_two = getpass("2FA Question 2 Answer: ")
+        # tz = os.popen("timedatectl status | awk '/Time zone/ {print $3}'").read().strip()
+        # location = input("Store location: ")
 
-        payload = {
-            "username": username,
-            "password": password,
-            "name": cu.capitalize(),
-            "sec_one_question": sec_question_one,
-            "sec_one_answer": sec_one,
-            "sec_two_question": sec_question_two,
-            "sec_two_answer": sec_two,
-            "timezone": tz,
-            "store_location": location
-        }
+        # payload = {
+            # "username": username,
+            # "password": password,
+            # "name": cu.capitalize(),
+            # "sec_question_one": sec_question_one,
+            # "sec_one_answer": sec_one,
+            # "sec_question_two": sec_question_two,
+            # "sec_two_answer": sec_two,
+            # "timezone": tz,
+            # "store_location": location
+        # }
 
-        with open("{}/credentials/config.json".format(self.configuration_dir), "w") as fp:
-            json.dump(payload, fp)
+        # with open("{}/credentials/config.json".format(self.configuration_dir), "w") as fp:
+            # json.dump(payload, fp)
 
-        self.chg_permissions()
-        jay = json_parser.jsonparser(self.read_contents())
+        # self.chg_permissions()
+        # user data is handled, now we need to make sure the user can post to Google calendar api
+        new_state = State(self.build_config,
+                          self.build_config.version,
+                          True)
+        new_state.write()
         sudo_execute().swap_user(cu)
 

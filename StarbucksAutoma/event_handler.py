@@ -26,13 +26,9 @@ using the freebusy API call --> https://gist.github.com/cwurld/9b4e10dbeecab2834
 
 
 from __future__ import print_function
-from StarbucksAutoma import json_parser as jp
 from StarbucksAutoma import event_packet
-from StarbucksAutoma import event_packet as ts
 
-
-from datetime import datetime
-from datetime import timedelta, date
+from datetime import datetime, timedelta, date
 
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -44,10 +40,12 @@ import json
 import os.path
 import pickle
 
+import pathlib
+import shutil
+
 # If modifying these scopes, delete the file token.pickle.
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-parser = jp.jsonparser("/etc/StarbucksAutoma/credentials/config.json")
 
 
 class GoogleEventHandler():
@@ -56,7 +54,17 @@ class GoogleEventHandler():
         self.service = build('calendar', 'v3', credentials=self.gen_credentials())
 
     def gen_credentials(self):
-        token_path = "/etc/StarbucksAutoma/credentials/token.pickle"
+        """
+        GOAL: generate credentials for a specific Google account.
+        This will be used to add events to a calendar
+        """
+
+        token_path = pathlib.Path(
+            "/etc/StarbucksAutoma/credentials/token.pickle"
+        )
+        credentials_path = pathlib.Path(
+            "/etc/StarbucksAutoma/credentials/credentials.json"
+        )
         credentials = None
         if os.path.exists(token_path):
             with open(token_path, 'rb') as token:
@@ -65,8 +73,9 @@ class GoogleEventHandler():
                 if credentials and credentials.expired and credentials.refresh_token:
                     credentials.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file("/etc/StarbucksAutoma/credentials"
-                                                           "/credentials.json", SCOPES)
+            if not(os.path.exists(credentials_path)):
+                shutil.copyfile("/tmp/credentials.json", credentials_path)
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
             credentials = flow.run_local_server()
         with open(token_path, 'wb') as token:
             pickle.dump(credentials, token)
@@ -95,7 +104,8 @@ class GoogleEventHandler():
     def get_event_day(self, current: datetime):
         next_day = '{}Z'.format((current+timedelta(days=1)).isoformat())
         current = '{}Z'.format(current.isoformat())
-        return self.service.events().list(calendarId='primary', timeMin=current, timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
+        return self.service.events().list(calendarId='primary', timeMin=current, 
+                timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
 
     def generate_packet(self, raw_data):
         return {
@@ -138,14 +148,15 @@ class GoogleEventHandler():
 
     def add_events(self, event: event_packet) -> None:
         start, end, event_id, status = self.check_event_presence(event.begin, event.summary)
+        original_ = None
         if(start is None and end is None):
             json_complient_event = json.loads(event.form_submit_body())
             self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
             success_message_ = "[+] Sucessfully added event {}".format(event.google_date_added_string())
             print(colored(success_message_, 'green', 'on_grey'))
         else:
-            original_ = ts.event_packet.from_string(start, end, event.summary)
-        if not(original_ == event):
+            original_ = event_packetevent_packet.from_string(start, end, event.summary)
+        if not(original_ == event or original_ is not None):
             json_complient_event = json.loads(event.form_submit_body())
             self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
             self.service.events().delete(calendarId='primary', eventId=event_id).execute()
@@ -157,3 +168,6 @@ class GoogleEventHandler():
         else:
             duplicate_event_message_ = "[-] Event {} is already in the calendar".format(event.google_date_added_string())
             print(colored(duplicate_event_message_, 'red', 'on_grey'))
+
+g = GoogleEventHandler()
+g.gen_credentials()

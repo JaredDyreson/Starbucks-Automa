@@ -10,20 +10,27 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 
-import time
+from time import sleep
 import os
 from datetime import datetime, timedelta, time
 import getpass
 
+from StarbucksAutoma.initialize import initializer
 from StarbucksAutoma import event_packet as ts
 from StarbucksAutoma import db_handler as db
 from StarbucksAutoma.json_parser import jsonparser
 
+
+
 username_ = getpass.getuser()
 application_path = "/etc/StarbucksAutoma/credentials/config.json"
 portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"
-jp = jsonparser(application)
+initalize = initializer()
 
+if(not os.path.exists(application_path)):
+    initalize.make_user_config()
+
+jp = jsonparser(initalize.read_contents())
 
 class portal_driver():
     def __init__(self, driver: webdriver, jparser=jp):
@@ -41,6 +48,7 @@ class portal_driver():
         self.load_inner_html_page()
         current_week_ = self.get_projected_week()
         for index, day in enumerate(self.scrape_current_week()):
+            bare_week_indexed = current_week_[index]
             if("Coverage" in day.text):
                 if("Training" in day.text):
                     base = day.text.split()
@@ -48,31 +56,37 @@ class portal_driver():
                     end = "{} {}".format(base[9], base[10])
                     is_training = True
                 elif("NonCoverage" in day.text):
+                    """
+                    This still needs to be tested further
+                    """
                     start = day.text.split("Coverage")[0].strip().split("-")[0].strip()
                     print(day.text.split("Coverage"))
                     end = day.text.split("NonCoverage")[1].strip().split("-")[1].strip().split()
                     print(day.text.split("NonCoverage"))
                     end = ' '.join(end[:2])
                 else:
-                    splice = day.text.split("Coverage").split("-")
-                    start, end = splice[0].strip(), splice[1].strip()
-                    # print(day.text.split("Coverage").split("-")[0].strip())
-                    # start = day.text.split("Coverage")[0].strip().split("-")[0].strip()
-                    # end = day.text.split("Coverage")[0].strip().split("-")[1].strip()
+                    splice = [element.split("-") for element in day.text.split("Coverage")]
+                    start, end = splice[0][0].strip(), splice[0][1].strip()
 
-        start = datetime.strptime(start, "%I:%M %p").time()
-        end = datetime.strptime(end, "%I:%M %p").time()
+                start = datetime.strptime(start, "%I:%M %p").time()
+                end = datetime.strptime(end, "%I:%M %p").time()
 
-        bare_week_indexed = current_week_[index]
 
-        combined_datetime_start_ = datetime.combine(bare_week_indexed, start)
-        combined_datetime_end_ = datetime.combine(bare_week_indexed, end)
-        if(time() == combined_datetime_end_.time()):
-            combined_datetime_end_ += timedelta(days=1)
-        event = ts.event_packet(combined_datetime_start_, combined_datetime_end_)
-        if(is_training):
-            event.summary = "Jared's Work (Training Included)"
-        filtered_.append(event)
+                combined_datetime_start_ = datetime.combine(bare_week_indexed, start)
+                combined_datetime_end_ = datetime.combine(bare_week_indexed, end)
+                if(time() == combined_datetime_end_.time()):
+                    combined_datetime_end_ += timedelta(days=1)
+                event = ts.event_packet(combined_datetime_start_, combined_datetime_end_)
+                if(is_training):
+                    event.summary = "Jared's Work (Training Included)"
+                filtered_.append(event)
+
+            elif("Time Off" in day.text):
+                string_version = datetime.strftime(bare_week_indexed, "%Y-%m-%d %H:%M:%S")
+                human_readable = datetime.strptime(string_version, "%Y-%m-%d %H:%M:%S").strftime("%A %B %d")
+                print("[+] Scheduled time off for {}".format(human_readable))
+                continue
+
         return filtered_
 
     def get_projected_week(self):
@@ -84,7 +98,7 @@ class portal_driver():
         """
 
         date_range = []
-        time.sleep(3)
+        sleep(3)
         split_week = self.get_current_week().split("-", 1)
 
         s = split_week[0].strip()
@@ -115,7 +129,7 @@ class portal_driver():
             sub_html_link = self.driver.find_element_by_css_selector(
                 "iframe[class='x-component x-fit-item x-component-default']").get_attribute('src')
             self.driver.get(sub_html_link)
-            time.sleep(8)
+            sleep(8)
         except NoSuchElementException:
             pass
 
@@ -127,7 +141,7 @@ class portal_driver():
 
         password_field = self.driver.find_element_by_css_selector(
                         "input[type='password']")
-        password_field.send_keys(self.jp.get_value("password"))
+        password_field.send_keys(self.jp.getjsonkey("password"))
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
     def fill_and_submit_password_field(self):
@@ -143,10 +157,10 @@ class portal_driver():
             username_field = self.driver.find_element_by_css_selector(
                 "input[class='textbox txtUserid']")
         except NoSuchElementException:
-            time.sleep(4)
+            sleep(4)
             username_field = self.driver.find_element_by_css_selector(
                             "input[class='textbox txtUserid']")
-        username_field.send_keys(self.jp.get_value("username"))
+        username_field.send_keys(self.jp.getjsonkey("username"))
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
     def fill_and_submit_username_field(self):
@@ -165,12 +179,12 @@ class portal_driver():
         security_button = self.driver.find_element_by_css_selector(
                             "input[type='submit']")
 
-        if(security_question.text == self.jp.get_value("sec_question_one")):
+        if(security_question.text == self.jp.getjsonkey("sec_question_one")):
             security_question_field.send_keys(
-                self.jp.get_value("sec_answer_one"))
+                self.jp.getjsonkey("sec_one_answer"))
         else:
             security_question_field.send_keys(
-                self.jp.get_value("sec_answer_two"))
+                self.jp.getjsonkey("sec_two_answer"))
         return security_button
 
     def go_to_landing_page(self):
@@ -199,7 +213,7 @@ class portal_driver():
     def fill_and_submit_two_factor_auth(self):
         self.find_two_factor_auth().click()
 
-    def wait_for_element(self, selector: str, delay=20):
+    def wait_for_element(self, selector: str, delay=40):
         WebDriverWait(self.driver, delay).until(
             ec.presence_of_element_located((By.CSS_SELECTOR, selector)))
 

@@ -1,27 +1,19 @@
 # Documentation
 
-## addingEvents
+## Initial setup
 
-This module is specifically aimed to handle all requests to and from the Google API. Most calls need a JSON body as a form of input which is seen in the `get_free_busy` function.
+Most of the configuration happens automatically, but for the first portion, you will need to enable the Google Calendar API to have access to your account.
 
-## GoogleEventHandler [Class]
+You just need to follow the instructions [here](https://developers.google.com/calendar/quickstart/python) and only do step one.
 
-GoogleEventHandler has two distinct attributes:
+Once you have the file, please run place the file in the `/tmp` directory as that is where StarbucksAutoma will look for the file.
 
-- Credentials: calls gen_credentials to return proper authentication to make calls to the Google Calendar API
-- Service Handler: this uses such credentials to create a service to send and receive requests.
+When running StarbucksAutoma for the first time, it will ask you to copy the link in the terminal to your browser.
+After that, it might say that this application is not verified. 
+If you feel unsafe using this, you can stop here and uninstall this utility.
+However, if you accept this application to be legitimate, you can go to the "Advanced settings" and then continue the authentication flow.
 
-### gen_credentials [Function]
-
-Here we are using a hard-coded location to where our credentials are stored. The convenient part of the Google Calendar API is that authentication can be achieved through the use of `token.pickle` files. These never expire and can be continually used. It is auto generated when the user is setting up a new project to work with the Google Calendar API (GCA). The trade-off, however, is that since it does not require any further authentication, malicious code execution can be easily achieved. This is why in the future the script should be run as root along with read only capabilities by root. Also, at the moment we are using JSON to store the username and password for the site we which to reach. The next major step is to move the JSON data and subsequently depreciate `JSONParser.py` into a database. It should also be know that this and all other functions in this header have the capability to be recycled into other codebases. This function was directly pulled from [here](https://developers.google.com/calendar/quickstart/python) and this section also contains more documentation on how to get your `token.pickle` file.
-
-## add_event
-
-
-
-```python
-print("Hello World")
-```
+After that, the process should be ready to go from here hence forth.
 
 # External Links
 

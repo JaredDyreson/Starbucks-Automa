@@ -1,16 +1,23 @@
 #!/usr/bin/env python3.8
 
 
-from StarbucksAutoma import json_parser as jp
+from StarbucksAutoma.json_parser import jsonparser
+from StarbucksAutoma.initialize import initializer
 
 from datetime import datetime
 
 import collections
 import json
 import pytz
+import os
 
 
-parser = jp.jsonparser("/etc/StarbucksAutoma/credentials/config.json")
+application_path = "/etc/StarbucksAutoma/credentials/config.json"
+
+initialize = initializer()
+# if(not os.path.exists(application_path)):
+    # initialize.make_user_config()
+parser = jsonparser(initialize.read_contents())
 
 
 class event_packet(object):
