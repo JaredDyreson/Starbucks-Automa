@@ -1,7 +1,7 @@
 class MessageException(Exception):
     def __init__(self, message):
         if(not (isinstance(message, str))):
-            raise ValueError("Please supply a str for exception messages")
+            raise ValueError
         self.message = message
 
 

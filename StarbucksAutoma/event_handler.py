@@ -50,8 +50,13 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 class GoogleEventHandler():
     def __init__(self):
+        self.ensure_root()
         self.credentials = self.gen_credentials()
         self.service = build('calendar', 'v3', credentials=self.gen_credentials())
+
+    def ensure_root(self):
+        if(os.getuid() != 0):
+            raise PermissionError("Run this class a root")
 
     def gen_credentials(self):
         """
@@ -101,13 +106,13 @@ class GoogleEventHandler():
         week.sort()
         return week
 
-    def get_event_day(self, current: datetime):
+    def get_event_day(self, current: datetime) -> list:
         next_day = '{}Z'.format((current+timedelta(days=1)).isoformat())
         current = '{}Z'.format(current.isoformat())
         return self.service.events().list(calendarId='primary', timeMin=current, 
                 timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
 
-    def generate_packet(self, raw_data):
+    def generate_packet(self, raw_data) -> dict:
         return {
             'summary': raw_data["summary"],
             'start': raw_data['start']['dateTime'],
@@ -125,14 +130,28 @@ class GoogleEventHandler():
                     work_week.append(packet)
         return work_week
 
-    def remove_event(self, event_id: str):
+    def remove_event(self, event_id: str) -> None:
+        """
+        Remove an event based on it's ID
+        """
+
+        if not(isinstance(event_id, str)):
+            raise ValueError
         event_handler.service.events().delete(calendarId='primary', eventId=event_id).execute()
 
     def clear_work_week(self) -> None:
+        """
+        Clear an entire work week in one go
+        """
+
         for element in self.get_event_week(event_name): 
             self.remove_event(element['id'])
 
     def check_event_presence(self, day: datetime, summary: str):
+        """
+        See if an event is already in the calendar
+        """
+
         overlap_ = []
         for element in self.get_event_day(day):
             if(element['summary'] == summary): 
@@ -140,15 +159,23 @@ class GoogleEventHandler():
                 overlap_.append(packet)
 
         if(len(overlap_) == 0): 
-            return None, None, None, False
+            return (None, None, None, False)
         elif(len(overlap_) > 1): 
-            return overlap_[-1]['start'], overlap_[-1]['end'], overlap_[-1]['event_id'], True
-        return overlap_[0]['start'], overlap_[0]['end'], overlap_[0]['event_id'] , True
+            return (overlap_[-1]['start'], overlap_[-1]['end'], overlap_[-1]['event_id'], True)
+        return (overlap_[0]['start'], overlap_[0]['end'], overlap_[0]['event_id'] , True)
 
 
     def add_events(self, event: event_packet) -> None:
+        """
+        Add an event packet to the Google calendar API
+        """
+
+        if not(isinstance(event, event_packet)):
+            raise ValueError
+
         start, end, event_id, status = self.check_event_presence(event.begin, event.summary)
         original_ = None
+
         if(start is None and end is None):
             json_complient_event = json.loads(event.form_submit_body())
             self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
@@ -168,6 +195,3 @@ class GoogleEventHandler():
         else:
             duplicate_event_message_ = "[-] Event {} is already in the calendar".format(event.google_date_added_string())
             print(colored(duplicate_event_message_, 'red', 'on_grey'))
-
-g = GoogleEventHandler()
-g.gen_credentials()

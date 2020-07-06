@@ -19,11 +19,11 @@ from StarbucksAutoma.initialize import initializer
 from StarbucksAutoma import event_packet as ts
 from StarbucksAutoma import db_handler as db
 from StarbucksAutoma.json_parser import jsonparser
-
+import pathlib
 
 
 username_ = getpass.getuser()
-application_path = "/etc/StarbucksAutoma/credentials/config.json"
+application_path = pathlib.Path("/etc/StarbucksAutoma/credentials/config.json")
 portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"
 initalize = initializer()
 
@@ -34,6 +34,9 @@ jp = jsonparser(initalize.read_contents())
 
 class portal_driver():
     def __init__(self, driver: webdriver, jparser=jp):
+        if not(isinstance(driver, webdriver) and
+               isinstance(jp, jsonparser)):
+               raise ValueError
         self.driver = driver
         self.jp = jparser
 

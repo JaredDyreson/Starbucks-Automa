@@ -1,8 +1,8 @@
 #!/usr/bin/env python3.8
 
 
+# from StarbucksAutoma.initialize import initializer
 from StarbucksAutoma.json_parser import jsonparser
-from StarbucksAutoma.initialize import initializer
 
 from datetime import datetime
 
@@ -10,44 +10,60 @@ import collections
 import json
 import pytz
 import os
+import pathlib
 
 
-application_path = "/etc/StarbucksAutoma/credentials/config.json"
+application_path = pathlib.Path(
+    "/etc/StarbucksAutoma/credentials/config.json"
+)
 
-initialize = initializer()
+
+# initialize = initializer()
 # if(not os.path.exists(application_path)):
     # initialize.make_user_config()
 parser = jsonparser(initialize.read_contents())
 
+current = datetime.today()
+global_summary = "{}'s Work".format(parser.getjsonkey("name"))
+
 
 class event_packet(object):
-    def __init__(self, start=datetime.today(), end=datetime.today(), summary="{}'s Work".format(parser.getjsonkey(key="name"))):
+    def __init__(self, start : datetime, end: datetime, 
+                    summary = global_summary):
+        if not(isinstance(start, datetime) and
+               isinstance(end, datetime) and
+               isinstance(summary, str)):
+
+               raise ValueError
+
         self.begin = start
         self.end = end
         self.summary = summary
 
     @classmethod
     def from_string(cls, s: str, e: str, summary: str):
+        if not(isinstance(s, str) and
+               isinstance(e, str) and
+               isinstance(summary, str)):
+               raise ValueError
+
         s = datetime.strptime(s[:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
         e = datetime.strptime(e[:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
         return cls(s, e, summary)
 
     @classmethod
-    # get start and end from a dictionary/json responses but neglecting the summary tag
     def from_dict(cls, body: dict):
+        """ Get start and end from a dictionary/json responses but neglecting the summary tag """
+
+        if not(isinstance(body, dict)):
+            raise ValueError
         return self.from_string(body['start'], body['end'], body['summary'])
 
     @classmethod
-    # get start and end from a dictionary/json response including the summary to allow for comparing results from free busy
     def from_freebusy(cls, response: dict):
-        b = str(response['start']['dateTime'])
-        t = str(response['end']['dateTime'])
-
-        s = datetime.strptime(b[:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
-        e = datetime.strptime(t[:19], "%Y-%m-%d{}%H:%M:%S".format("T"))
-
-        summary = response['summary']
-        return cls(s, e, summary)
+        """ Get start and end from a dictionary/json response including the summary to allow for comparing results from free busy """
+        return self.from_string(response['start']['dateTime'], 
+                                response['end']['dateTime'], response['summary'])
 
     def __eq__(self, other):
         """
@@ -93,13 +109,15 @@ class event_packet(object):
 
         return abs(float((self.end - self.begin).total_seconds()/3600))
 
-    def form_submit_body(self, timezone=parser.getjsonkey(key="timezone"), location=parser.getjsonkey(key="store_location")):
+    def form_submit_body(self):
         """
         Return a json body that will be used for submitting to the Google Calendar API
         """
 
+        timezone, location = parser.getjsonkey("timezone"), parser.getjsonkey("location")
+
         body = [
-            ('summary', "{}'s Work".format(parser.getjsonkey(key="name"))),
+            ('summary', global_summary,
             ('start', {'dateTime': self.google_calendar_format()[0], 'timeZone': timezone}),
             ('end', {'dateTime': self.google_calendar_format()[1], 'timeZone': timezone}),
             ('location', location)

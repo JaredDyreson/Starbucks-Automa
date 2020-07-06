@@ -10,6 +10,7 @@ from sudo_execute.sudo_execute import sudo_execute
 import packaging.version
 import pathlib
 from StarbucksAutoma.version import __version__ as __sbversion__
+from StarbucksAutoma.event_handler import GoogleEventHandler
 
 """
 This portion must be run as root to ensure that file permissions are properly set
@@ -21,10 +22,11 @@ the list of timezones dumped from timedatectl on the StarbucksAutoma wiki
 
 VERSION = packaging.version.parse(__sbversion__)
 STATE_PATH = pathlib.Path("/etc/StarbucksAutoma/state.json")
+CONFIG_PATH = pathlib.Path("/etc/StarbucksAutoma/credentials/config.json")
 
 """
 Pulled from the Tuffix project
-AUTHOR: Kevin Wortman
+ORIGINAL AUTHOR: Kevin Wortman
 """
 
 # Configuration defined at build-time. This is a class so that we can
@@ -107,6 +109,7 @@ class initializer():
                         "work_schedules"]
         self.ensure_nix()
         self.ensure_root()
+        self.ensure_utils()
 
     def ensure_root(self):
         if(os.getuid() != 0):
@@ -115,6 +118,15 @@ class initializer():
     def ensure_nix(self):
         if(os.name == "nt"):
             raise EnviornmentException("Windows not supported")
+
+    def ensure_utils(self):
+        utilities = ["timedatectl", "awk"]
+        for utility in utilities:
+            try:
+                if(subprocess.run(['which', utility]).returncode != 0):
+                    raise EnvironmentError("command {} cannot be found, is this system running systemd?".format(utility))
+            except FileNotFoundError:
+                raise EnvironmentError("no `which` found, please install")
 
     def currently_logged_in(self) -> list:
         return [user for user in subprocess.check_output(["users"], encoding="utf-8").split('\n') if user]
@@ -126,50 +138,52 @@ class initializer():
             os.mkdir(os.path.join(self.configuration_dir, path))
 
     def chg_permissions(self):
-        os.system("chmod 600 {}/credentials/config.json".format(self.configuration_dir))
+        os.system("chmod 600 {}".format(CONFIG_PATH))
     
     def read_contents(self):
-        with open("{}/credentials/config.json".format(self.configuration_dir)) as fp:
+        with open(CONFIG_PATH) as fp:
             return json.load(fp)
 
     def make_user_config(self) -> None:
         state = read_state(self.build_config)   
         if(state.is_configured):
-            raise EnvironmentError("already configured")
+            raise EnvironmentError("StarbucksAutoma is already configured")
 
         cu = self.currently_logged_in()[0]
 
-        # username = input("Starbucks Username: ")
-        # password = getpass()
+        username = input("Starbucks Username: ")
+        password = getpass()
 
-        # sec_question_one = input("2FA Question 1: ")
-        # sec_one = getpass("2FA Question 1 Answer: ")
+        sec_question_one = input("2FA Question 1: ")
+        sec_one = getpass("2FA Question 1 Answer: ")
 
-        # sec_question_two = input("2FA Question 2: ")
-        # sec_two = getpass("2FA Question 2 Answer: ")
-        # tz = os.popen("timedatectl status | awk '/Time zone/ {print $3}'").read().strip()
-        # location = input("Store location: ")
+        sec_question_two = input("2FA Question 2: ")
+        sec_two = getpass("2FA Question 2 Answer: ")
+        tz = os.popen("timedatectl status | awk '/Time zone/ {print $3}'").read().strip()
+        location = input("Store location: ")
 
-        # payload = {
-            # "username": username,
-            # "password": password,
-            # "name": cu.capitalize(),
-            # "sec_question_one": sec_question_one,
-            # "sec_one_answer": sec_one,
-            # "sec_question_two": sec_question_two,
-            # "sec_two_answer": sec_two,
-            # "timezone": tz,
-            # "store_location": location
-        # }
+        payload = {
+            "username": username,
+            "password": password,
+            "name": cu.capitalize(),
+            "sec_question_one": sec_question_one,
+            "sec_one_answer": sec_one,
+            "sec_question_two": sec_question_two,
+            "sec_two_answer": sec_two,
+            "timezone": tz,
+            "store_location": location
+        }
 
-        # with open("{}/credentials/config.json".format(self.configuration_dir), "w") as fp:
-            # json.dump(payload, fp)
+        with open(CONFIG_PATH, "w") as fp:
+            json.dump(payload, fp)
 
-        # self.chg_permissions()
-        # user data is handled, now we need to make sure the user can post to Google calendar api
+        self.chg_permissions()
+        GoogleEventHandler()
+
         new_state = State(self.build_config,
                           self.build_config.version,
                           True)
         new_state.write()
+
         sudo_execute().swap_user(cu)
 
