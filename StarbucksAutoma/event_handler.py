@@ -53,6 +53,9 @@ class GoogleEventHandler():
         self.ensure_root()
         self.credentials = self.gen_credentials()
         self.service = build('calendar', 'v3', credentials=self.gen_credentials())
+        if (isinstance(self.credentials, type(None)) or
+               isinstance(self.service, type(None))):
+               raise ValueError
 
     def ensure_root(self):
         if(os.getuid() != 0):
@@ -170,8 +173,8 @@ class GoogleEventHandler():
         Add an event packet to the Google calendar API
         """
 
-        if not(isinstance(event, event_packet)):
-            raise ValueError
+        # if not(isinstance(event, event_packet)):
+            # raise ValueError
 
         start, end, event_id, status = self.check_event_presence(event.begin, event.summary)
         original_ = None
@@ -182,16 +185,17 @@ class GoogleEventHandler():
             success_message_ = "[+] Sucessfully added event {}".format(event.google_date_added_string())
             print(colored(success_message_, 'green', 'on_grey'))
         else:
-            original_ = event_packetevent_packet.from_string(start, end, event.summary)
-        if not(original_ == event or original_ is not None):
-            json_complient_event = json.loads(event.form_submit_body())
-            self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
-            self.service.events().delete(calendarId='primary', eventId=event_id).execute()
-            success_message_ = "[+] Sucessfully updated event to {} from {}".format(
-                  ' '.join(event.google_date_added_string().split()[1:]),
-                  ' '.join(original_.google_date_added_string().split()[1:])
-            )
-            print(colored(success_message_, 'green', 'on_grey'))
+            original_ = event_packet.event_packet.from_string(start, end, event.summary)
+        if (original_ is not None):
+            if not(original_ == event):
+                json_complient_event = json.loads(event.form_submit_body())
+                self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
+                self.service.events().delete(calendarId='primary', eventId=event_id).execute()
+                success_message_ = "[+] Sucessfully updated event to {} from {}".format(
+                      ' '.join(event.google_date_added_string().split()[1:]),
+                      ' '.join(original_.google_date_added_string().split()[1:])
+                )
+                print(colored(success_message_, 'green', 'on_grey'))
         else:
             duplicate_event_message_ = "[-] Event {} is already in the calendar".format(event.google_date_added_string())
             print(colored(duplicate_event_message_, 'red', 'on_grey'))

@@ -4,7 +4,7 @@
 import math
 from termcolor import colored
 
-from StarbucksAutoma import event_handler
+from StarbucksAutoma.event_handler import GoogleEventHandler
 
 
 def truncate(x, n):
@@ -12,9 +12,16 @@ def truncate(x, n):
 
 
 class starbucks_week():
-    def __init__(self, current_week: list, current_week_str: str):
+    def __init__(self, current_week: list, 
+                    current_week_str: str, handler: GoogleEventHandler):
+        if not(isinstance(current_week, list) or
+               isinstance(current_week_str, str) or
+               isinstance(handler, GoogleEventHandler)):
+               raise ValueError
+
         self.current_week_ = current_week
         self.current_week_string_ = current_week_str
+        self.handler = handler
 
     def __repr__(self):
         event_message_ = "[+] Adding all events for week of {}...".format(self.current_week_string_)
@@ -61,6 +68,6 @@ class starbucks_week():
         """
         Add each individual event using the Google Calendar API
         """
-        google_calendar_bot = event_handler.GoogleEventHandler()
+
         for event in self.current_week_:
-            google_calendar_bot.add_events(event)
+           self.handler.add_events(event)

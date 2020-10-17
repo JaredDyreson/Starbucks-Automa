@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.8
 
 
-# from StarbucksAutoma.initialize import initializer
+from StarbucksAutoma.initialize import initializer
 from StarbucksAutoma.json_parser import jsonparser
 
 from datetime import datetime
@@ -13,15 +13,7 @@ import os
 import pathlib
 
 
-application_path = pathlib.Path(
-    "/etc/StarbucksAutoma/credentials/config.json"
-)
-
-
-# initialize = initializer()
-# if(not os.path.exists(application_path)):
-    # initialize.make_user_config()
-parser = jsonparser(initialize.read_contents())
+parser = jsonparser()
 
 current = datetime.today()
 global_summary = "{}'s Work".format(parser.getjsonkey("name"))
@@ -114,10 +106,10 @@ class event_packet(object):
         Return a json body that will be used for submitting to the Google Calendar API
         """
 
-        timezone, location = parser.getjsonkey("timezone"), parser.getjsonkey("location")
+        timezone, location = parser.getjsonkey("timezone"), parser.getjsonkey("store_location")
 
         body = [
-            ('summary', global_summary,
+            ('summary', global_summary),
             ('start', {'dateTime': self.google_calendar_format()[0], 'timeZone': timezone}),
             ('end', {'dateTime': self.google_calendar_format()[1], 'timeZone': timezone}),
             ('location', location)

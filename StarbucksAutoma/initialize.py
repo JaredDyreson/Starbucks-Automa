@@ -49,7 +49,6 @@ DEFAULT_BUILD_CONFIG = BuildConfig(VERSION, STATE_PATH)
 class State:
     # build_config: a BuildConfig object
     # version: packaging.Version for the StarbucksAutoma version that created this state
-    # installed: list of strings representing the codewords that are currently installed
     def __init__(self, build_config, version, configured):
         if not (isinstance(build_config, BuildConfig) and
                 isinstance(version, packaging.version.Version) and
@@ -123,7 +122,7 @@ class initializer():
         utilities = ["timedatectl", "awk"]
         for utility in utilities:
             try:
-                if(subprocess.run(['which', utility]).returncode != 0):
+                if(subprocess.run(['which', utility], stdout=subprocess.DEVNULL).returncode != 0):
                     raise EnvironmentError("command {} cannot be found, is this system running systemd?".format(utility))
             except FileNotFoundError:
                 raise EnvironmentError("no `which` found, please install")

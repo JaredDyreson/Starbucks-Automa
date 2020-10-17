@@ -15,28 +15,30 @@ import os
 from datetime import datetime, timedelta, time
 import getpass
 
-from StarbucksAutoma.initialize import initializer
 from StarbucksAutoma import event_packet as ts
 from StarbucksAutoma import db_handler as db
 from StarbucksAutoma.json_parser import jsonparser
 import pathlib
+import re
+import json
 
 
 username_ = getpass.getuser()
-application_path = pathlib.Path("/etc/StarbucksAutoma/credentials/config.json")
 portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"
-initalize = initializer()
 
-if(not os.path.exists(application_path)):
-    initalize.make_user_config()
+jp = jsonparser()
 
-jp = jsonparser(initalize.read_contents())
+"""
+NOTE:
+
+These would be nice to have implemented
+
+- Regex to get current hours done: "Punched Hours\n(?P<coverage>\d+\.\d+)"
+
+"""
 
 class portal_driver():
     def __init__(self, driver: webdriver, jparser=jp):
-        if not(isinstance(driver, webdriver) and
-               isinstance(jp, jsonparser)):
-               raise ValueError
         self.driver = driver
         self.jp = jparser
 
@@ -50,9 +52,19 @@ class portal_driver():
         is_training = False
         self.load_inner_html_page()
         current_week_ = self.get_projected_week()
+        time_working_regex = re.compile("(?P<start>\d{2}\:\d{2}\s(a|pm)).*(?P<end>\d{2}\:\d{2}\s(a|pm))")
+
         for index, day in enumerate(self.scrape_current_week()):
             bare_week_indexed = current_week_[index]
+            if(day.text):
+                match = time_working_regex.match(day.text)
+                if(match):
+                    start, end = match.group("start"), match.group("end")
             if("Coverage" in day.text):
+                """
+                this still needs to be tested
+                """
+
                 if("Training" in day.text):
                     base = day.text.split()
                     start = "{} {}".format(base[0], base[1])
@@ -62,6 +74,7 @@ class portal_driver():
                     """
                     This still needs to be tested further
                     """
+
                     start = day.text.split("Coverage")[0].strip().split("-")[0].strip()
                     print(day.text.split("Coverage"))
                     end = day.text.split("NonCoverage")[1].strip().split("-")[1].strip().split()
@@ -120,8 +133,8 @@ class portal_driver():
         """
 
         self.load_inner_html_page()
-        return self.driver.find_elements_by_xpath(
-            '//*[contains(@class,"x-grid-cell x-grid-td x-grid-cell-headerId-gridColumn")]')[:7]
+        return [element.text for element in self.driver.find_elements_by_xpath(
+            '//*[contains(@class,"x-grid-cell x-grid-td x-grid-cell-headerId-gridColumn")]')[:7]]
 
     def load_inner_html_page(self):
         """
