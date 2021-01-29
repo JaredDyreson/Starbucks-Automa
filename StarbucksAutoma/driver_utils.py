@@ -25,6 +25,7 @@ import json
 
 username_ = getpass.getuser()
 portal_url = "https://starbucks-wfmr.jdadelivers.com/retail"
+print('hey look mom! no hands!')
 
 jp = jsonparser()
 
@@ -52,37 +53,40 @@ class portal_driver():
         is_training = False
         self.load_inner_html_page()
         current_week_ = self.get_projected_week()
-        time_working_regex = re.compile("(?P<start>\d{2}\:\d{2}\s(a|pm)).*(?P<end>\d{2}\:\d{2}\s(a|pm))")
+        time_working_regex = re.compile("(?P<start>\d{2}\:\d{2}\s(am|pm)).*(?P<end>\d{2}\:\d{2}\s(am|pm))")
+        scraped_week = self.scrape_current_week()
 
-        for index, day in enumerate(self.scrape_current_week()):
+        for index, day in enumerate(scraped_week):
+            if not(day): continue
+
             bare_week_indexed = current_week_[index]
-            if(day.text):
-                match = time_working_regex.match(day.text)
-                if(match):
-                    start, end = match.group("start"), match.group("end")
-            if("Coverage" in day.text):
+            start, end = None, None
+
+            if("Coverage" in day):
                 """
                 this still needs to be tested
                 """
 
-                if("Training" in day.text):
-                    base = day.text.split()
+                if("Training" in day):
+                    base = day.split()
                     start = "{} {}".format(base[0], base[1])
                     end = "{} {}".format(base[9], base[10])
                     is_training = True
-                elif("NonCoverage" in day.text):
+
+                elif("NonCoverage" in day):
                     """
                     This still needs to be tested further
                     """
 
-                    start = day.text.split("Coverage")[0].strip().split("-")[0].strip()
-                    print(day.text.split("Coverage"))
-                    end = day.text.split("NonCoverage")[1].strip().split("-")[1].strip().split()
-                    print(day.text.split("NonCoverage"))
+                    start = day.split("Coverage")[0].strip().split("-")[0].strip()
+                    print(day.split("Coverage"))
+                    end = day.split("NonCoverage")[1].strip().split("-")[1].strip().split()
+                    print(day.split("NonCoverage"))
                     end = ' '.join(end[:2])
                 else:
-                    splice = [element.split("-") for element in day.text.split("Coverage")]
-                    start, end = splice[0][0].strip(), splice[0][1].strip()
+                    match = time_working_regex.match(day)
+                    if(match):
+                        start, end = match.group("start"), match.group("end")
 
                 start = datetime.strptime(start, "%I:%M %p").time()
                 end = datetime.strptime(end, "%I:%M %p").time()
@@ -97,11 +101,10 @@ class portal_driver():
                     event.summary = "Jared's Work (Training Included)"
                 filtered_.append(event)
 
-            elif("Time Off" in day.text):
+            if("Time Off" in day):
                 string_version = datetime.strftime(bare_week_indexed, "%Y-%m-%d %H:%M:%S")
                 human_readable = datetime.strptime(string_version, "%Y-%m-%d %H:%M:%S").strftime("%A %B %d")
-                print("[+] Scheduled time off for {}".format(human_readable))
-                continue
+                print(f"[+] Scheduled time off for {human_readable}")
 
         return filtered_
 

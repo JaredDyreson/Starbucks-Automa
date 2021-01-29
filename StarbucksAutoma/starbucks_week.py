@@ -60,7 +60,7 @@ class starbucks_week():
         Calculate total pay for a given week
         """
 
-        PAY_RATE = 15.02
+        PAY_RATE = 16.67
         calculated_ = self.get_hours_for_overall_pay()*PAY_RATE
         return truncate(calculated_, 2)
 

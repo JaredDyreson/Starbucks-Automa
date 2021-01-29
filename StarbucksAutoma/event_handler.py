@@ -88,7 +88,7 @@ class GoogleEventHandler():
         with open(token_path, 'wb') as token:
             pickle.dump(credentials, token)
         return credentials
-    
+
     def get_current_week(self) -> list:
         """
         Get the current week's days into isoformat.
@@ -112,7 +112,7 @@ class GoogleEventHandler():
     def get_event_day(self, current: datetime) -> list:
         next_day = '{}Z'.format((current+timedelta(days=1)).isoformat())
         current = '{}Z'.format(current.isoformat())
-        return self.service.events().list(calendarId='primary', timeMin=current, 
+        return self.service.events().list(calendarId='primary', timeMin=current,
                 timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
 
     def generate_packet(self, raw_data) -> dict:
@@ -147,23 +147,23 @@ class GoogleEventHandler():
         Clear an entire work week in one go
         """
 
-        for element in self.get_event_week(event_name): 
+        for element in self.get_event_week(event_name):
             self.remove_event(element['id'])
 
-    def check_event_presence(self, day: datetime, summary: str):
+    def check_event_presence(self, day: datetime, summary: str) -> tuple:
         """
         See if an event is already in the calendar
         """
 
         overlap_ = []
         for element in self.get_event_day(day):
-            if(element['summary'] == summary): 
+            if(element['summary'] == summary):
                 packet = self.generate_packet(element)
                 overlap_.append(packet)
 
-        if(len(overlap_) == 0): 
+        if(len(overlap_) == 0):
             return (None, None, None, False)
-        elif(len(overlap_) > 1): 
+        elif(len(overlap_) > 1):
             return (overlap_[-1]['start'], overlap_[-1]['end'], overlap_[-1]['event_id'], True)
         return (overlap_[0]['start'], overlap_[0]['end'], overlap_[0]['event_id'] , True)
 
@@ -182,20 +182,23 @@ class GoogleEventHandler():
         if(start is None and end is None):
             json_complient_event = json.loads(event.form_submit_body())
             self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
-            success_message_ = "[+] Sucessfully added event {}".format(event.google_date_added_string())
+            success_message_ = f"[+] Sucessfully added event {event.google_date_added_string()}"
             print(colored(success_message_, 'green', 'on_grey'))
         else:
             original_ = event_packet.event_packet.from_string(start, end, event.summary)
+
+        if(status):
+            # if we know that the event is already present
+            duplicate_event_message_ = f"[-] Event {event.google_date_added_string()} is already in the calendar"
+            print(colored(duplicate_event_message_, 'red', 'on_grey'))
+
         if (original_ is not None):
             if not(original_ == event):
                 json_complient_event = json.loads(event.form_submit_body())
                 self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
                 self.service.events().delete(calendarId='primary', eventId=event_id).execute()
-                success_message_ = "[+] Sucessfully updated event to {} from {}".format(
-                      ' '.join(event.google_date_added_string().split()[1:]),
-                      ' '.join(original_.google_date_added_string().split()[1:])
-                )
+
+                begin, end = event.google_date_format(), original_.google_date_format()
+
+                success_message_ = f"[+] Sucessfully updated event to {begin} from {end}"
                 print(colored(success_message_, 'green', 'on_grey'))
-        else:
-            duplicate_event_message_ = "[-] Event {} is already in the calendar".format(event.google_date_added_string())
-            print(colored(duplicate_event_message_, 'red', 'on_grey'))

@@ -113,7 +113,7 @@ class event_packet(object):
             ('start', {'dateTime': self.google_calendar_format()[0], 'timeZone': timezone}),
             ('end', {'dateTime': self.google_calendar_format()[1], 'timeZone': timezone}),
             ('location', location)
-            ]
+        ]
         final_submit_body = collections.OrderedDict(body)
         return json.dumps(final_submit_body, indent=4)
 
@@ -125,7 +125,7 @@ class event_packet(object):
         time_zone = parser.getjsonkey(key="timezone")
 
         current_offset = pytz.timezone(time_zone).localize(time_obj).strftime('%z')
-        return "{}:{}".format(current_offset[:3], current_offset[3:])
+        return f"{current_offset[:3]}:{current_offset[3:]}"
 
     def gen_human_readable(self, time_obj: datetime):
         """
@@ -135,12 +135,16 @@ class event_packet(object):
         string_version = datetime.strftime(time_obj, "%Y-%m-%d{}%H:%M:%S").format("T")
         return datetime.strptime(string_version, "%Y-%m-%d{}%H:%M:%S".format("T")).strftime("%A %B %d, %H:%M")
 
+    def google_date_format(self, shave=False) -> tuple:
+        begin_h = self.gen_human_readable(self.begin)
+        end_h = self.gen_human_readable(self.end)
+        return (begin_h, end_h.split()[3] if shave else end_h)
+
     def google_date_added_string(self):
         """
         Return a string that can be used for reporting if an event has been added or is already present
         Example: from Monday January 2 11:15 to 15:15
         """
 
-        begin_h = self.gen_human_readable(self.begin)
-        end_h = self.gen_human_readable(self.end)
-        return "from {} to {}".format(begin_h, end_h.split()[3])
+        a, b = self.google_date_format(shave=True)
+        return f"from {a} to {b}"
