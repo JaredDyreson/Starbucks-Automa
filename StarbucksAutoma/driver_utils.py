@@ -38,6 +38,7 @@ These would be nice to have implemented
 
 """
 
+
 class portal_driver():
     def __init__(self, driver: webdriver, jparser=jp):
         self.driver = driver
@@ -53,11 +54,18 @@ class portal_driver():
         is_training = False
         self.load_inner_html_page()
         current_week_ = self.get_projected_week()
-        time_working_regex = re.compile("(?P<start>\d{2}\:\d{2}\s(am|pm)).*(?P<end>\d{2}\:\d{2}\s(am|pm))")
+        time_working_regex = re.compile(
+            "(?P<start>\d{2}\:\d{2}\s(am|pm)).*(?P<end>\d{2}\:\d{2}\s(am|pm))")
         scraped_week = self.scrape_current_week()
+        c = self.get_current_week().replace('/', '_')
+        c = c.replace(' ', '_')
+        import pickle
+        with open(f"/tmp/scratch/scraped_{c}.pkl", 'wb') as fp:
+            pickle.dump(scraped_week, fp)
 
         for index, day in enumerate(scraped_week):
-            if not(day): continue
+            if not(day):
+                continue
 
             bare_week_indexed = current_week_[index]
             start, end = None, None
@@ -78,9 +86,11 @@ class portal_driver():
                     This still needs to be tested further
                     """
 
-                    start = day.split("Coverage")[0].strip().split("-")[0].strip()
+                    start = day.split("Coverage")[
+                        0].strip().split("-")[0].strip()
                     print(day.split("Coverage"))
-                    end = day.split("NonCoverage")[1].strip().split("-")[1].strip().split()
+                    end = day.split("NonCoverage")[1].strip().split(
+                        "-")[1].strip().split()
                     print(day.split("NonCoverage"))
                     end = ' '.join(end[:2])
                 else:
@@ -91,19 +101,23 @@ class portal_driver():
                 start = datetime.strptime(start, "%I:%M %p").time()
                 end = datetime.strptime(end, "%I:%M %p").time()
 
-
-                combined_datetime_start_ = datetime.combine(bare_week_indexed, start)
-                combined_datetime_end_ = datetime.combine(bare_week_indexed, end)
+                combined_datetime_start_ = datetime.combine(
+                    bare_week_indexed, start)
+                combined_datetime_end_ = datetime.combine(
+                    bare_week_indexed, end)
                 if(time() == combined_datetime_end_.time()):
                     combined_datetime_end_ += timedelta(days=1)
-                event = ts.event_packet(combined_datetime_start_, combined_datetime_end_)
+                event = ts.event_packet(
+                    combined_datetime_start_, combined_datetime_end_)
                 if(is_training):
                     event.summary = "Jared's Work (Training Included)"
                 filtered_.append(event)
 
             if("Time Off" in day):
-                string_version = datetime.strftime(bare_week_indexed, "%Y-%m-%d %H:%M:%S")
-                human_readable = datetime.strptime(string_version, "%Y-%m-%d %H:%M:%S").strftime("%A %B %d")
+                string_version = datetime.strftime(
+                    bare_week_indexed, "%Y-%m-%d %H:%M:%S")
+                human_readable = datetime.strptime(
+                    string_version, "%Y-%m-%d %H:%M:%S").strftime("%A %B %d")
                 print(f"[+] Scheduled time off for {human_readable}")
 
         return filtered_
@@ -159,7 +173,7 @@ class portal_driver():
         """
 
         password_field = self.driver.find_element_by_css_selector(
-                        "input[type='password']")
+            "input[type='password']")
         password_field.send_keys(self.jp.getjsonkey("password"))
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
@@ -178,7 +192,7 @@ class portal_driver():
         except NoSuchElementException:
             sleep(4)
             username_field = self.driver.find_element_by_css_selector(
-                            "input[class='textbox txtUserid']")
+                "input[class='textbox txtUserid']")
         username_field.send_keys(self.jp.getjsonkey("username"))
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
@@ -192,11 +206,11 @@ class portal_driver():
         """
 
         security_question = self.driver.find_element_by_css_selector(
-                            "span[class='bodytext lblKBQ lblKBQ1']")
+            "span[class='bodytext lblKBQ lblKBQ1']")
         security_question_field = self.driver.find_element_by_css_selector(
-                            "input[class='textbox tbxKBA tbxKBA1']")
+            "input[class='textbox tbxKBA tbxKBA1']")
         security_button = self.driver.find_element_by_css_selector(
-                            "input[type='submit']")
+            "input[type='submit']")
 
         if(security_question.text == self.jp.getjsonkey("sec_question_one")):
             security_question_field.send_keys(
