@@ -10,6 +10,11 @@ from __future__ import print_function
 # from selenium.webdriver.common.by import By
 # from selenium.common.exceptions import NoSuchElementException
 
+# Internal imports
+
+import CellParser
+import EventPacket
+
 import datetime
 import getpass
 import json
@@ -17,6 +22,7 @@ import os
 import pathlib
 import re
 import time
+import pickle
 
 
 class PortalDriver():
@@ -26,22 +32,34 @@ class PortalDriver():
     def get_current_week(self) -> str:
         return "06/14/2021 - 06/20/2021"
 
-    # def filter_stitch(self):
-        # """
-        # Create a list of event_packet objects that will be submitted
-        # to Google Calendar via an API request
-        # """
+    def filter_stitch(self):
+        """
+        Create a list of event_packet objects that will be submitted
+        to Google Calendar via an API request
+        """
 
-        # filtered = []
+        filtered = []
         # self.load_inner_html_page()
-        # current_week = self.get_projected_week()
-        # scraped_week = self.scrape_current_week()
+        current_week = self.get_projected_week()
 
-        # for x, day in enumerate(scraped_week):
-        # if not(day):
-        # continue
+        # NOTE : reading in the data artificially because selenium does not support
+        # python3.10, however this is much faster
 
-        # cell = Cell(day)
+        with open("scraped_06_14_2021_-_06_20_2021.pkl", "rb") as fp:
+            scraped_week = pickle.load(fp)
+
+        for x, day in enumerate(scraped_week):
+            if not(day.isspace()):
+                cell = CellParser.Cell(day)
+                current_date = current_week[x]
+                begin, end = cell.create_tuple(current_date)
+                packet = EventPacket.EventPacket((begin, end))
+                print(packet.google_added_format())
+                # print(packet.submit_form())
+                # begin, end = cell.create_tuple()
+
+                # _ = begin.append_daypart(current_week[x])
+                # print(_)
 
     def get_projected_week(self) -> list[datetime.datetime]:
         """
@@ -69,5 +87,5 @@ class PortalDriver():
 
 
 _ = PortalDriver(None)
-container = _.get_projected_week()
-print(container)
+
+_.filter_stitch()
