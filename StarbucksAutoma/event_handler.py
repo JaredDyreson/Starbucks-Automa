@@ -52,10 +52,11 @@ class GoogleEventHandler():
     def __init__(self):
         self.ensure_root()
         self.credentials = self.gen_credentials()
-        self.service = build('calendar', 'v3', credentials=self.gen_credentials())
+        self.service = build(
+            'calendar', 'v3', credentials=self.gen_credentials())
         if (isinstance(self.credentials, type(None)) or
-               isinstance(self.service, type(None))):
-               raise ValueError
+                isinstance(self.service, type(None))):
+            raise ValueError
 
     def ensure_root(self):
         if(os.getuid() != 0):
@@ -83,7 +84,8 @@ class GoogleEventHandler():
         else:
             if not(os.path.exists(credentials_path)):
                 shutil.copyfile("/tmp/credentials.json", credentials_path)
-            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(
+                credentials_path, SCOPES)
             credentials = flow.run_local_server()
         with open(token_path, 'wb') as token:
             pickle.dump(credentials, token)
@@ -112,8 +114,9 @@ class GoogleEventHandler():
     def get_event_day(self, current: datetime) -> list:
         next_day = '{}Z'.format((current+timedelta(days=1)).isoformat())
         current = '{}Z'.format(current.isoformat())
+        help(self.service.events)
         return self.service.events().list(calendarId='primary', timeMin=current,
-                timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
+                                          timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
 
     def generate_packet(self, raw_data) -> dict:
         return {
@@ -140,7 +143,8 @@ class GoogleEventHandler():
 
         if not(isinstance(event_id, str)):
             raise ValueError
-        event_handler.service.events().delete(calendarId='primary', eventId=event_id).execute()
+        event_handler.service.events().delete(
+            calendarId='primary', eventId=event_id).execute()
 
     def clear_work_week(self) -> None:
         """
@@ -165,8 +169,7 @@ class GoogleEventHandler():
             return (None, None, None, False)
         elif(len(overlap_) > 1):
             return (overlap_[-1]['start'], overlap_[-1]['end'], overlap_[-1]['event_id'], True)
-        return (overlap_[0]['start'], overlap_[0]['end'], overlap_[0]['event_id'] , True)
-
+        return (overlap_[0]['start'], overlap_[0]['end'], overlap_[0]['event_id'], True)
 
     def add_events(self, event: event_packet) -> None:
         """
@@ -174,18 +177,21 @@ class GoogleEventHandler():
         """
 
         # if not(isinstance(event, event_packet)):
-            # raise ValueError
+        # raise ValueError
 
-        start, end, event_id, status = self.check_event_presence(event.begin, event.summary)
+        start, end, event_id, status = self.check_event_presence(
+            event.begin, event.summary)
         original_ = None
 
         if(start is None and end is None):
             json_complient_event = json.loads(event.form_submit_body())
-            self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
+            self.service.events().insert(calendarId='primary',
+                                         body=json_complient_event).execute()
             success_message_ = f"[+] Sucessfully added event {event.google_date_added_string()}"
             print(colored(success_message_, 'green', 'on_grey'))
         else:
-            original_ = event_packet.event_packet.from_string(start, end, event.summary)
+            original_ = event_packet.event_packet.from_string(
+                start, end, event.summary)
 
         if(status):
             # if we know that the event is already present
@@ -195,7 +201,8 @@ class GoogleEventHandler():
         if (original_ is not None):
             if not(original_ == event):
                 json_complient_event = json.loads(event.form_submit_body())
-                self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
+                self.service.events().insert(calendarId='primary',
+                                             body=json_complient_event).execute()
                 self.service.events().delete(calendarId='primary', eventId=event_id).execute()
 
                 begin, end = event.google_date_format(), original_.google_date_format()
