@@ -7,15 +7,17 @@ import collections
 
 
 class EventPacket:
-    def __init__(self, time: tuple[Time.Time], summary="Jared\'s Work"):
+    def __init__(self, time: tuple[Time.Time], duration: float, summary="Jared\'s Work"):
         if not(isinstance(time, tuple) and
                all([isinstance(_, Time.Time) for _ in time]) and
+               isinstance(duration, float) and
                isinstance(summary, str)):
             raise ValueError
 
         self.time = time
         self.summary = summary
         self.timezone = time[0].time_zone
+        self.duration = duration
 
     def calendar_format(self) -> tuple[str]:
         begin, end = self.time

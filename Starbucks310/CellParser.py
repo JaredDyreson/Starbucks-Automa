@@ -33,9 +33,10 @@ class Cell:
                     f'parsing error in self.message text: {self.message}')
 
     def create_tuple(self, seeded_date: datetime.datetime) -> tuple[Time.Time]:
-        begin, btod, end, etod, _, _ = self.container
+        begin, btod, end, etod, _, duration = self.container
         return (Time.Time(f'{begin} {btod}', "America/Los_Angeles", seeded_date),
-                Time.Time(f'{end} {etod}', "America/Los_Angeles", seeded_date))
+                Time.Time(f'{end} {etod}', "America/Los_Angeles", seeded_date),
+                float(duration))
 
     def create_json(self) -> dict:
         begin, _, end, _, _type, duration = self.container

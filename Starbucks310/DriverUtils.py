@@ -52,8 +52,8 @@ class PortalDriver():
             if not(day.isspace()):
                 cell = CellParser.Cell(day)
                 current_date = current_week[x]
-                begin, end = cell.create_tuple(current_date)
-                packet = EventPacket.EventPacket((begin, end))
+                begin, end, duration = cell.create_tuple(current_date)
+                packet = EventPacket.EventPacket((begin, end), duration)
                 print(packet.google_added_format())
                 # print(packet.submit_form())
                 # begin, end = cell.create_tuple()

@@ -12,7 +12,6 @@ class Time:
         self.time_zone = time_zone
         if(seeded_date):
             self.append_daypart(seeded_date)
-            # print(self.start)
 
     def create_time_object(self, string_repr: str) -> datetime.datetime:
         """
