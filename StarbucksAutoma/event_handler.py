@@ -114,7 +114,6 @@ class GoogleEventHandler():
     def get_event_day(self, current: datetime) -> list:
         next_day = '{}Z'.format((current+timedelta(days=1)).isoformat())
         current = '{}Z'.format(current.isoformat())
-        help(self.service.events)
         return self.service.events().list(calendarId='primary', timeMin=current,
                                           timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
 
