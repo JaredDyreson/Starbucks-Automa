@@ -1,8 +1,4 @@
-#!/usr/bin/env python3.8
-
-# Firefox webdriver helper functions
-
-from __future__ import print_function
+"""Firefox webdriver helper functions"""
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,18 +7,11 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import os
 
-# from StarbucksAutoma import event_packet as ts
-# from StarbucksAutoma import db_handler as db
-# from StarbucksAutoma.json_parser import jsonparser
-# import pathlib
-# import json
 import typing
 import datetime
 
 from StarbucksAutoma.event_packet import EventPacket
-
-portal_url = "http://127.0.0.1:5004"
-
+from StarbucksAutoma.constants import PORTAL_URL_TESTING as portal_url
 
 def get_projected_week(input_string: str) -> typing.List[datetime.datetime]:
     """
@@ -38,17 +27,47 @@ def get_projected_week(input_string: str) -> typing.List[datetime.datetime]:
 
     return [begin + datetime.timedelta(days=i) for i in range((end - begin).days)]
 
-class portal_driver():
-    def __init__(self, driver):
+
+class portal_driver:
+    def __init__(self, driver, url: str):
         self.driver = driver
+        self.url = url
+
+    def run(self) -> None:
+        """Start the driver"""
+
+        self.driver.get(self.url)
+
+    @property
+    def current_week(self) -> str:
+        """Find the current week selected in the navigation menu"""
+
+        return self.driver.find_element_by_css_selector(
+            "#textfield-1026-inputEl"
+        ).get_attribute("value")
+
+    @property
+    def work_week(self) -> typing.List[str]:
+        """
+        Get a list of web driver elements that contain days working
+
+        @return typing.List[str] : contents of each field to be parsed
+        """
+
+        return [
+            element.text
+            for element in self.driver.find_elements_by_xpath(
+                '//*[contains(@class,"x-grid-cell x-grid-td x-grid-cell-headerId-gridColumn")]'
+            )[:7]
+        ]
 
     def scrape_page(self) -> typing.List[EventPacket]:
         container: typing.List[EventPacket] = []
 
         for element, corresponding in zip(
-            self.scrape_current_week(), get_projected_week("02/28/2022 - 03/06/2022")
+            self.work_week, get_projected_week(self.current_week)
         ):
-            if element != " ":
+            if element.strip():
                 match element.split("\n"):
                     case [time, coverage, hours]:
                         print("coverage")
@@ -57,9 +76,6 @@ class portal_driver():
                         print("called off")
                     case _:
                         raise Exception("malformed data")
-
-                # start, end = map(lambda x: datetime.datetime.strptime(x, "%I:%M %p").time(), time.split(" - "))
-                # start, end = map(lambda x: datetime.datetime.combine(corresponding, x), (start, end))
 
                 start, end = map(
                     lambda x: datetime.datetime.combine(corresponding, x),
@@ -73,14 +89,6 @@ class portal_driver():
 
         return container
 
-    def scrape_current_week(self):
-        """
-        Get a list of web driver elements that contain days working
-        """
-
-        return [element.text for element in self.driver.find_elements_by_xpath(
-            '//*[contains(@class,"x-grid-cell x-grid-td x-grid-cell-headerId-gridColumn")]')[:7]]
-
     def load_inner_html_page(self):
         """
         Load the sub page of the portal that will allow access to the schedule
@@ -88,7 +96,8 @@ class portal_driver():
 
         try:
             sub_html_link = self.driver.find_element_by_css_selector(
-                "iframe[class='x-component x-fit-item x-component-default']").get_attribute('src')
+                "iframe[class='x-component x-fit-item x-component-default']"
+            ).get_attribute("src")
             print(sub_html_link)
             # self.driver.get(sub_html_link)
             # sleep(8)
@@ -102,7 +111,8 @@ class portal_driver():
         """
 
         password_field = self.driver.find_element_by_css_selector(
-            "input[type='password']")
+            "input[type='password']"
+        )
         password_field.send_keys(self.jp.getjsonkey("password"))
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
@@ -117,11 +127,13 @@ class portal_driver():
 
         try:
             username_field = self.driver.find_element_by_css_selector(
-                "input[class='textbox txtUserid']")
+                "input[class='textbox txtUserid']"
+            )
         except NoSuchElementException:
             sleep(4)
             username_field = self.driver.find_element_by_css_selector(
-                "input[class='textbox txtUserid']")
+                "input[class='textbox txtUserid']"
+            )
         username_field.send_keys(self.jp.getjsonkey("username"))
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
@@ -135,18 +147,19 @@ class portal_driver():
         """
 
         security_question = self.driver.find_element_by_css_selector(
-            "span[class='bodytext lblKBQ lblKBQ1']")
+            "span[class='bodytext lblKBQ lblKBQ1']"
+        )
         security_question_field = self.driver.find_element_by_css_selector(
-            "input[class='textbox tbxKBA tbxKBA1']")
+            "input[class='textbox tbxKBA tbxKBA1']"
+        )
         security_button = self.driver.find_element_by_css_selector(
-            "input[type='submit']")
+            "input[type='submit']"
+        )
 
-        if(security_question.text == self.jp.getjsonkey("sec_question_one")):
-            security_question_field.send_keys(
-                self.jp.getjsonkey("sec_one_answer"))
+        if security_question.text == self.jp.getjsonkey("sec_question_one"):
+            security_question_field.send_keys(self.jp.getjsonkey("sec_one_answer"))
         else:
-            security_question_field.send_keys(
-                self.jp.getjsonkey("sec_two_answer"))
+            security_question_field.send_keys(self.jp.getjsonkey("sec_two_answer"))
         return security_button
 
     def go_to_landing_page(self):
@@ -158,31 +171,27 @@ class portal_driver():
         self.fill_and_submit_username_field()
 
         print("[+] Finding and filling in two factor authentication...")
-        self.wait_for_element(
-            "span[class='bodytext lblKBQIndicator lblKBQIndicator1']")
+        self.wait_for_element("span[class='bodytext lblKBQIndicator lblKBQIndicator1']")
         self.fill_and_submit_two_factor_auth()
 
         print("[+] Finding and filling in password field...")
         self.wait_for_element("a[id='sbuxForgotPasswordURL']")
         self.fill_and_submit_password_field()
-        self.wait_for_element(
-            "img[class='x-img rp-redprairie-logo x-img-default']")
+        self.wait_for_element("img[class='x-img rp-redprairie-logo x-img-default']")
 
     def go_to_next_week(self):
         self.driver.find_element_by_css_selector(
-            "span[id='button-1029-btnIconEl']").click()
+            "span[id='button-1029-btnIconEl']"
+        ).click()
 
     def fill_and_submit_two_factor_auth(self):
         self.find_two_factor_auth().click()
 
     def wait_for_element(self, selector: str, delay=40):
         WebDriverWait(self.driver, delay).until(
-            ec.presence_of_element_located((By.CSS_SELECTOR, selector)))
+            ec.presence_of_element_located((By.CSS_SELECTOR, selector))
+        )
 
     def kill_marionette(self):
         self.driver.quit()
         os.remove("geckodriver.log")
-
-    def get_current_week(self):
-        return self.driver.find_element_by_css_selector(
-            "#textfield-1026-inputEl").get_attribute("value")
