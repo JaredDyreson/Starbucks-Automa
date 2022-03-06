@@ -1,6 +1,3 @@
-#!/usr/bin/env python3.8
-
-#
 # Copyright 2018 Google LLC
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,17 +15,19 @@
 """
 Sources
 
-checking if event is already in the calendar --> https://stackoverflow.com/questions/55272913/how-to-check-google-calendar-to-see-if-event-already-exists-before-adding
-also was a good idea to abstract this to a class ^ 
-using the freebusy API call --> https://gist.github.com/cwurld/9b4e10dbeecab28345a3
+checking if event is already in the calendar
+   * https://stackoverflow.com/questions/55272913/how-to-check-google-calendar-to-see-if-event-already-exists-before-adding
 
+using the freebusy API call
+   * https://gist.github.com/cwurld/9b4e10dbeecab28345a3
 """
 
 
 from __future__ import print_function
-from StarbucksAutoma import event_packet
 
-from datetime import datetime, timedelta, date
+from StarbucksAutoma import event_packet
+from StarbucksAutoma.exceptions import CrendentialFailure
+from StarbucksAutoma.constants import TOKEN_PATH, CREDENTIALS_PATH
 
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -36,162 +35,125 @@ from googleapiclient.discovery import build
 
 from termcolor import colored
 
+from types import NotImplementedType
+import typing
+import abc
+
 import json
 import os.path
 import pickle
 
 import pathlib
 import shutil
+import datetime
 
 # If modifying these scopes, delete the file token.pickle.
 
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
-class GoogleEventHandler():
+class EventHandler(abc.ABC):
+    """Abstract base class for all calendar event handlers"""
+
+    @abc.abstractmethod
+    def generate_credentials(self):
+        """Generate credentials to use this event handler"""
+
+    @staticmethod
+    def get_current_week() -> typing.List[datetime.datetime]:
+        """Obtain a list of datetime objects representing the week we are in"""
+        week, counter = [], 0
+        today = datetime.date.today()
+
+        while today.weekday() != 0:
+            counter += 1
+            today -= datetime.timedelta(days=1)
+            week.append(today)
+
+        today += datetime.timedelta(days=counter)
+
+        for _ in range(counter, 7):
+            week.append(today)
+            today += datetime.timedelta(days=1)
+
+        return sorted(week)
+
+    @abc.abstractmethod
+    def add_event(self, event: event_packet.EventPacket):
+        """Append an event to the calendar"""
+
+    @abc.abstractmethod
+    def remove_event(self, event: event_packet.EventPacket):
+        """Remove an event from the calendar"""
+
+    @abc.abstractmethod
+    def get_events_from_day(self, date: datetime.datetime) -> typing.Any:
+        """Get all the events from a given day"""
+
+
+class GoogleEventHandler(EventHandler):
+    """Google Calendar event handler implementation"""
+
     def __init__(self):
-        self.ensure_root()
-        self.credentials = self.gen_credentials()
-        self.service = build('calendar', 'v3', credentials=self.gen_credentials())
+        self.credentials = self.generate_credentials()
+        print(self.credentials)
+        self.service = build("calendar", "v3", credentials=self.credentials)
 
-    def ensure_root(self):
-        if(os.getuid() != 0):
-            raise PermissionError("Run this class a root")
+        if not self.credentials or self.service:
+            raise CrendentialFailure("could not instaniate credentials")
 
-    def gen_credentials(self):
-        """
-        GOAL: generate credentials for a specific Google account.
-        This will be used to add events to a calendar
-        """
-
-        token_path = pathlib.Path(
-            "/etc/StarbucksAutoma/credentials/token.pickle"
-        )
-        credentials_path = pathlib.Path(
-            "/etc/StarbucksAutoma/credentials/credentials.json"
-        )
+    def generate_credentials(self):
+        """Generate credentials for Google account and will be used to add events"""
         credentials = None
-        if os.path.exists(token_path):
-            with open(token_path, 'rb') as token:
+
+        if TOKEN_PATH.is_file():
+            with open(TOKEN_PATH, "rb") as token:
                 credentials = pickle.load(token)
             if not credentials or not credentials.valid:
                 if credentials and credentials.expired and credentials.refresh_token:
                     credentials.refresh(Request())
-        else:
-            if not(os.path.exists(credentials_path)):
-                shutil.copyfile("/tmp/credentials.json", credentials_path)
-            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-            credentials = flow.run_local_server()
-        with open(token_path, 'wb') as token:
-            pickle.dump(credentials, token)
+            else:
+                if not CREDENTIALS_PATH.is_file():
+                    shutil.copyfile("/tmp/credentials.json", CREDENTIALS_PATH)
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    CREDENTIALS_PATH, SCOPES
+                )
+                credentials = flow.run_local_server()
+
+            with open(TOKEN_PATH, "wb") as token:
+                pickle.dump(credentials, token)
+
         return credentials
-    
-    def get_current_week(self) -> list:
-        """
-        Get the current week's days into isoformat.
-        """
 
-        week, counter = [], 0
-        today = date.today()
-
-        while(today.weekday() != 0):
-            counter += 1
-            today -= timedelta(days=1)
-            week.append(today)
-
-        today += timedelta(days=counter)
-        for _ in range(counter, 7):
-            week.append(today)
-            today += timedelta(days=1)
-        week.sort()
-        return week
-
-    def get_event_day(self, current: datetime) -> list:
-        next_day = '{}Z'.format((current+timedelta(days=1)).isoformat())
-        current = '{}Z'.format(current.isoformat())
-        return self.service.events().list(calendarId='primary', timeMin=current, 
-                timeMax=next_day, maxResults=50, singleEvents=True, orderBy='startTime').execute().get('items', [])
-
-    def generate_packet(self, raw_data) -> dict:
-        return {
-            'summary': raw_data["summary"],
-            'start': raw_data['start']['dateTime'],
-            'end': raw_data['end']['dateTime'],
-            'event_id': raw_data['id']
-        }
-
-    def get_event_week(self, summary: str):
-        work_week = []
-        for day in get_current_week():
-            response = get_event_day(day)
-            for element in self.get_event_day(day):
-                if(summary == element["summary"]):
-                    packet = self.generate_packet(element)
-                    work_week.append(packet)
-        return work_week
-
-    def remove_event(self, event_id: str) -> None:
-        """
-        Remove an event based on it's ID
-        """
-
-        if not(isinstance(event_id, str)):
-            raise ValueError
-        event_handler.service.events().delete(calendarId='primary', eventId=event_id).execute()
-
-    def clear_work_week(self) -> None:
-        """
-        Clear an entire work week in one go
-        """
-
-        for element in self.get_event_week(event_name): 
-            self.remove_event(element['id'])
-
-    def check_event_presence(self, day: datetime, summary: str):
-        """
-        See if an event is already in the calendar
-        """
-
-        overlap_ = []
-        for element in self.get_event_day(day):
-            if(element['summary'] == summary): 
-                packet = self.generate_packet(element)
-                overlap_.append(packet)
-
-        if(len(overlap_) == 0): 
-            return (None, None, None, False)
-        elif(len(overlap_) > 1): 
-            return (overlap_[-1]['start'], overlap_[-1]['end'], overlap_[-1]['event_id'], True)
-        return (overlap_[0]['start'], overlap_[0]['end'], overlap_[0]['event_id'] , True)
-
-
-    def add_events(self, event: event_packet) -> None:
-        """
-        Add an event packet to the Google calendar API
-        """
-
-        if not(isinstance(event, event_packet)):
-            raise ValueError
-
-        start, end, event_id, status = self.check_event_presence(event.begin, event.summary)
-        original_ = None
-
-        if(start is None and end is None):
-            json_complient_event = json.loads(event.form_submit_body())
-            self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
-            success_message_ = "[+] Sucessfully added event {}".format(event.google_date_added_string())
-            print(colored(success_message_, 'green', 'on_grey'))
-        else:
-            original_ = event_packetevent_packet.from_string(start, end, event.summary)
-        if not(original_ == event or original_ is not None):
-            json_complient_event = json.loads(event.form_submit_body())
-            self.service.events().insert(calendarId='primary', body=json_complient_event).execute()
-            self.service.events().delete(calendarId='primary', eventId=event_id).execute()
-            success_message_ = "[+] Sucessfully updated event to {} from {}".format(
-                  ' '.join(event.google_date_added_string().split()[1:]),
-                  ' '.join(original_.google_date_added_string().split()[1:])
+    def get_events_from_day(self, date: datetime.datetime) -> typing.List:
+        current, next_ = map(
+            lambda x: x.isoformat(), (date, date + datetime.timedelta(days=1))
+        )
+        return (
+            self.service.events()
+            .list(
+                calendarId="primary",
+                timeMin=current,
+                timeMax=next_,
+                maxResults=50,
+                singleEvents=True,
+                orderBy="startTime",
             )
-            print(colored(success_message_, 'green', 'on_grey'))
-        else:
-            duplicate_event_message_ = "[-] Event {} is already in the calendar".format(event.google_date_added_string())
-            print(colored(duplicate_event_message_, 'red', 'on_grey'))
+            .execute()
+            .get("items", [])
+        )
+
+    def remove_event(self, event: str) -> None:
+        """TODO: Check if event is present to even remove and report if not found"""
+
+        self.service.events().delete(calendarId="primary", eventId=event).execute()
+
+    def add_event(self, event: event_packet.EventPacket):
+        """TODO: Check if event is present and update if needed"""
+
+        self.service.events().insert(calendarId='primary',
+                                     body=event.form_submit_body()).execute()
+
+        print(
+            colored(f"Successfully added event {event}", 'green')
+        )

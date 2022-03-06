@@ -1,66 +1,63 @@
-#!/usr/bin/env python3.8
+"""A class representing a work week"""
 
-
+import dataclasses
+import functools
 import math
+import operator
+import typing
+
+from StarbucksAutoma.event_handler import GoogleEventHandler
+from StarbucksAutoma.event_packet import EventPacket
+from StarbucksAutoma.constants import PAY_RATE
+
+
 from termcolor import colored
 
-from StarbucksAutoma import event_handler
+
+def truncate(x: typing.Union[int, float], n: typing.Union[int, float]) -> float:
+    """Remove the leading decimal places"""
+
+    return math.trunc((10 ** n) * x) / (10 ** n)
 
 
-def truncate(x, n):
-    return math.trunc((10**n)*x)/(10**n)
+@dataclasses.dataclass
+class WorkWeek:
+    days_working: typing.List[EventPacket]
+    current_week_string_: str
 
+    @property
+    def duration(self) -> float:
+        """How many hours will the individual be at work"""
 
-class starbucks_week():
-    def __init__(self, current_week: list, current_week_str: str):
-        self.current_week_ = current_week
-        self.current_week_string_ = current_week_str
+        return functools.reduce(operator.add, self.days_working)
 
-    def __repr__(self):
-        event_message_ = "[+] Adding all events for week of {}...".format(self.current_week_string_)
-        scheduled_hours_message_ = "[+] Scheduled hours: {}".format(self.get_hours_scheduled())
-        projected_pay_message_ = "[+] Projected pay: ${}".format(self.get_projected_income())
-        return "{}\n{}\n{}".format(
-            colored(event_message_, 'blue'),
-            colored(scheduled_hours_message_, 'magenta'),
-            colored(projected_pay_message_, 'green')
+    @property
+    def payable_hours(self) -> float:
+        """How many hours will the individual be paid for"""
+
+        return sum(
+            i.duration() if i.duration() < 5 else i.duration() - 0.5
+            for i in self.days_working
         )
 
-    def get_hours_scheduled(self):
-        """
-        Add up all the hourst for a given week (including lunches)
-        """
+    @property
+    def projected_income(self) -> float:
+        """Calculate the individual's income before taxes"""
 
-        return sum([element.get_time_elapsed() for element in self.current_week_])
-
-    def get_hours_for_overall_pay(self):
-        """
-        Add up all the hours for a given week (not including lunches)
-        Can be used to calculate gross pay
-        """
-
-        total = 0
-        for day in self.current_week_:
-            hours_worked_ = day.get_time_elapsed()
-            if(hours_worked_ >= 5):
-                total += ((hours_worked_-0.5))
-            else:
-                total += (hours_worked_)
-        return total
-
-    def get_projected_income(self):
-        """
-        Calculate total pay for a given week
-        """
-
-        PAY_RATE = 15.02
-        calculated_ = self.get_hours_for_overall_pay()*PAY_RATE
-        return truncate(calculated_, 2)
+        return truncate(self.payable_hours * PAY_RATE, 2)
 
     def add_to_calendar(self):
-        """
-        Add each individual event using the Google Calendar API
-        """
-        google_calendar_bot = event_handler.GoogleEventHandler()
-        for event in self.current_week_:
-            google_calendar_bot.add_events(event)
+        """Add each individual event to a calendar API"""
+
+        for _ in self.days_working:
+            pass
+
+    def __repr__(self):
+        messages: typing.Tuple[str, str, str] = (
+            f"[+] Adding all events for the week of {self.current_week_string_}",
+            f"[+] Scheduled hours: {self.duration}",
+            f"[+] Projected pay: ${self.projected_income}",
+        )
+        return "\n".join(
+            map(lambda x, y: colored(x, y), messages, ("blue", "magenta", "green"))
+        )

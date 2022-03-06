@@ -9,3 +9,5 @@ class EnviornmentException(MessageException):
     def __init__(self, message):
         super().__init__(message)
 
+class CrendentialFailure(MessageException):
+    """Credentials could not be established"""
