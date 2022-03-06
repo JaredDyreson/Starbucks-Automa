@@ -9,9 +9,18 @@ import os
 
 import typing
 import datetime
+import time
 
 from StarbucksAutoma.event_packet import EventPacket
 from StarbucksAutoma.constants import PORTAL_URL_TESTING as portal_url
+from StarbucksAutoma.constants import USERNAME, PASSWORD
+from StarbucksAutoma.constants import (
+    SEC_ONE_QUESTION,
+    SEC_TWO_QUESTION,
+    SEC_ANSWER_ONE,
+    SEC_ANSWER_TWO,
+)
+
 
 def get_projected_week(input_string: str) -> typing.List[datetime.datetime]:
     """
@@ -28,10 +37,16 @@ def get_projected_week(input_string: str) -> typing.List[datetime.datetime]:
     return [begin + datetime.timedelta(days=i) for i in range((end - begin).days)]
 
 
-class portal_driver:
+class PortalDriver:
     def __init__(self, driver, url: str):
         self.driver = driver
         self.url = url
+
+    def __del__(self):
+        """When the object goes out of scope, kill it and clean up"""
+
+        self.driver.quit()
+        os.remove("geckodriver.log")
 
     def run(self) -> None:
         """Start the driver"""
@@ -89,31 +104,25 @@ class portal_driver:
 
         return container
 
-    def load_inner_html_page(self):
+    def load_inner_html_page(self) -> str:
         """
-        Load the sub page of the portal that will allow access to the schedule
+        Return the embedded page in the portal that will allow access to the schedule
         """
 
-        try:
-            sub_html_link = self.driver.find_element_by_css_selector(
-                "iframe[class='x-component x-fit-item x-component-default']"
-            ).get_attribute("src")
-            print(sub_html_link)
-            # self.driver.get(sub_html_link)
-            # sleep(8)
-        except NoSuchElementException:
-            pass
+        return self.driver.find_element_by_css_selector(
+            "iframe[class='x-component x-fit-item x-component-default']"
+        ).get_attribute("src")
 
     def find_partner_password_field(self):
         """
-        Find and fille the final password field for login
+        Find and fill the final password field for login
         Returns clickable submit button on the page
         """
 
         password_field = self.driver.find_element_by_css_selector(
             "input[type='password']"
         )
-        password_field.send_keys(self.jp.getjsonkey("password"))
+        password_field.send_keys(USERNAME)
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
     def fill_and_submit_password_field(self):
@@ -125,16 +134,14 @@ class portal_driver:
         Retuns a clickable submit button on the page
         """
 
-        try:
-            username_field = self.driver.find_element_by_css_selector(
-                "input[class='textbox txtUserid']"
-            )
-        except NoSuchElementException:
-            sleep(4)
-            username_field = self.driver.find_element_by_css_selector(
-                "input[class='textbox txtUserid']"
-            )
-        username_field.send_keys(self.jp.getjsonkey("username"))
+        self.wait_for_element(
+            "input[class='textbox txtUserid']"
+        )
+
+        self.driver.find_element_by_css_selector(
+            "input[class='textbox txtUserid']"
+        ).send_keys(USERNAME)
+
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
     def fill_and_submit_username_field(self):
@@ -146,52 +153,65 @@ class portal_driver:
         Returns clickable submit button on the page
         """
 
-        security_question = self.driver.find_element_by_css_selector(
-            "span[class='bodytext lblKBQ lblKBQ1']"
-        )
-        security_question_field = self.driver.find_element_by_css_selector(
-            "input[class='textbox tbxKBA tbxKBA1']"
-        )
-        security_button = self.driver.find_element_by_css_selector(
-            "input[type='submit']"
+        # security_question = self.driver.find_element_by_css_selector(
+        # "span[class='bodytext lblKBQ lblKBQ1']"
+        # )
+        # security_question_field = self.driver.find_element_by_css_selector(
+        # "input[class='textbox tbxKBA tbxKBA1']"
+        # )
+        # security_button = self.driver.find_element_by_css_selector(
+        # "input[type='submit']"
+        # )
+
+        security_question, security_question_field, security_button = map(
+            self.driver.find_element_by_css_selector,
+            (
+                "span[class='bodytext lblKBQ lblKBQ1']",
+                "input[class='textbox tbxKBA tbxKBA1']",
+                "input[type='submit']",
+            ),
         )
 
-        if security_question.text == self.jp.getjsonkey("sec_question_one"):
-            security_question_field.send_keys(self.jp.getjsonkey("sec_one_answer"))
-        else:
-            security_question_field.send_keys(self.jp.getjsonkey("sec_two_answer"))
+        security_question_field.send_keys(
+            SEC_ANSWER_ONE
+            if security_question.text == SEC_ONE_QUESTION
+            else SEC_ANSWER_TWO
+        )
         return security_button
 
     def go_to_landing_page(self):
+        """Navigate to the schedule landing page"""
+
         print("[+] Loading portal login page....")
         self.driver.get(portal_url)
 
         print("[+] Finding and filling username field....")
         self.wait_for_element("span[class='sbuxheadertext']")
-        self.fill_and_submit_username_field()
+        self.find_partner_username().click()
 
         print("[+] Finding and filling in two factor authentication...")
         self.wait_for_element("span[class='bodytext lblKBQIndicator lblKBQIndicator1']")
-        self.fill_and_submit_two_factor_auth()
+        self.find_two_factor_auth().click()
+
+        time.sleep(2) # there's this annoying pin message we can just wait out
 
         print("[+] Finding and filling in password field...")
         self.wait_for_element("a[id='sbuxForgotPasswordURL']")
-        self.fill_and_submit_password_field()
+        self.find_partner_password_field().click()
         self.wait_for_element("img[class='x-img rp-redprairie-logo x-img-default']")
 
     def go_to_next_week(self):
+        """Navigate to the next week on the webpage"""
+
         self.driver.find_element_by_css_selector(
             "span[id='button-1029-btnIconEl']"
         ).click()
 
-    def fill_and_submit_two_factor_auth(self):
-        self.find_two_factor_auth().click()
 
     def wait_for_element(self, selector: str, delay=40):
+        """Given a CSS Selector, wait for the element to appear"""
+
         WebDriverWait(self.driver, delay).until(
             ec.presence_of_element_located((By.CSS_SELECTOR, selector))
         )
 
-    def kill_marionette(self):
-        self.driver.quit()
-        os.remove("geckodriver.log")

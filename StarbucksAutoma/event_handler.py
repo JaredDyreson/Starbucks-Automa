@@ -151,9 +151,8 @@ class GoogleEventHandler(EventHandler):
     def add_event(self, event: event_packet.EventPacket):
         """TODO: Check if event is present and update if needed"""
 
-        self.service.events().insert(calendarId='primary',
-                                     body=event.form_submit_body()).execute()
+        self.service.events().insert(
+            calendarId="primary", body=event.form_submit_body()
+        ).execute()
 
-        print(
-            colored(f"Successfully added event {event}", 'green')
-        )
+        print(colored(f"Successfully added event {event}", "green"))

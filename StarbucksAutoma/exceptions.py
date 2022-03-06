@@ -1,6 +1,6 @@
 class MessageException(Exception):
     def __init__(self, message):
-        if(not (isinstance(message, str))):
+        if not (isinstance(message, str)):
             raise ValueError
         self.message = message
 
@@ -8,6 +8,7 @@ class MessageException(Exception):
 class EnviornmentException(MessageException):
     def __init__(self, message):
         super().__init__(message)
+
 
 class CrendentialFailure(MessageException):
     """Credentials could not be established"""
