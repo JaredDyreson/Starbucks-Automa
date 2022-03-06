@@ -13,7 +13,8 @@ from StarbucksAutoma.constants import PAY_RATE
 
 from termcolor import colored
 
-def truncate(x: int, n: int) -> float:
+
+def truncate(x: typing.Union[int, float], n: typing.Union[int, float]) -> float:
     """Remove the leading decimal places"""
 
     return math.trunc((10 ** n) * x) / (10 ** n)
