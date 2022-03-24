@@ -1,32 +1,16 @@
 """Chrome webdriver helper functions"""
 
-import typing
 import datetime
-import time
 import json
 import os
-import pickle
+import time
+import typing
 
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.support.wait import WebDriverWait
 
 from StarbucksAutoma.event_packet import EventPacket
-
-
-def get_projected_week(input_string: str) -> typing.List[datetime.datetime]:
-    """
-    Given a string representation of a week,
-    return a seven item long list of datetime objects with no time attached
-    @param input_string : representation of the week
-    @return typing.List[datetime.datetime] : all of the datetime objects
-    """
-
-    begin, end = map(
-        lambda x: datetime.datetime.strptime(x, "%m/%d/%Y"), input_string.split(" - ")
-    )
-
-    return [begin + datetime.timedelta(days=i) for i in range((end - begin).days)]
 
 
 class PortalDriver:
