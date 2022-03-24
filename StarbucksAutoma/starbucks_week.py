@@ -58,6 +58,8 @@ class WorkWeek:
             f"[+] Scheduled hours: {self.duration}",
             f"[+] Projected pay: ${self.projected_income}",
         )
-        return "\n".join(
-            map(lambda x, y: colored(x, y), messages, ("blue", "magenta", "green"))
-        )
+        # return "\n".join(
+        # map(lambda x, y: colored(x, y), messages, ("blue", "magenta", "green"))
+        # )
+
+        return "\n".join(map(colored, messages, ("blue", "magenta", "green")))

@@ -27,11 +27,12 @@ from __future__ import print_function
 
 from StarbucksAutoma import event_packet
 from StarbucksAutoma.exceptions import CrendentialFailure
-from StarbucksAutoma.constants import TOKEN_PATH, CREDENTIALS_PATH
+from StarbucksAutoma.constants import TOKEN_PATH, CREDENTIALS_PATH, TOKEN_JSON_PATH
 
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
 
 from termcolor import colored
 
@@ -99,29 +100,43 @@ class GoogleEventHandler(EventHandler):
         print(self.credentials)
         self.service = build("calendar", "v3", credentials=self.credentials)
 
-        if not self.credentials or self.service:
-            raise CrendentialFailure("could not instaniate credentials")
+        print(self.service)
+
+        # if not self.credentials or self.service:
+        # raise CrendentialFailure("could not instaniate credentials")
 
     def generate_credentials(self):
         """Generate credentials for Google account and will be used to add events"""
         credentials = None
 
-        if TOKEN_PATH.is_file():
-            with open(TOKEN_PATH, "rb") as token:
-                credentials = pickle.load(token)
-            if not credentials or not credentials.valid:
-                if credentials and credentials.expired and credentials.refresh_token:
-                    credentials.refresh(Request())
+        """
+        The file token.json stores the user's access and refresh tokens, and is
+        created automatically when the authorization flow completes for the first time.
+        """
+
+        if TOKEN_JSON_PATH.is_file():
+            # if os.path.exists('token.json'):
+            credentials = Credentials.from_authorized_user_file(TOKEN_JSON_PATH, SCOPES)
+
+        # If there are no (valid) credentials available, let the user log in.
+        if not credentials or not credentials.valid:
+            if credentials and credentials.expired and credentials.refresh_token:
+                # flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
+
+                # credentials = flow.run_local_server(port=0)
+                credentials.refresh(Request())
             else:
-                if not CREDENTIALS_PATH.is_file():
-                    shutil.copyfile("/tmp/credentials.json", CREDENTIALS_PATH)
+
                 flow = InstalledAppFlow.from_client_secrets_file(
                     CREDENTIALS_PATH, SCOPES
                 )
-                credentials = flow.run_local_server()
+                # flow = InstalledAppFlow.from_client_secrets_file(
+                # '/home/jared/Downloads/client_secret_815316007427-4a02hc9emrteh5t55i5tia1j07c6io73.apps.googleusercontent.com.json', SCOPES)
+                credentials = flow.run_local_server(port=0)
 
-            with open(TOKEN_PATH, "wb") as token:
-                pickle.dump(credentials, token)
+            # Save the credentials for the next run
+            with open(TOKEN_JSON_PATH, "w", encoding="utf-8") as token:
+                token.write(credentials.to_json())
 
         return credentials
 

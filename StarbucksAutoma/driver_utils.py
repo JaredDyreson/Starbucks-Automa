@@ -1,25 +1,17 @@
-"""Firefox webdriver helper functions"""
-
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException
-import os
+"""Chrome webdriver helper functions"""
 
 import typing
 import datetime
 import time
+import json
+import os
+import pickle
+
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.common.by import By
 
 from StarbucksAutoma.event_packet import EventPacket
-from StarbucksAutoma.constants import PORTAL_URL_TESTING as portal_url
-from StarbucksAutoma.constants import USERNAME, PASSWORD
-from StarbucksAutoma.constants import (
-    SEC_ONE_QUESTION,
-    SEC_TWO_QUESTION,
-    SEC_ANSWER_ONE,
-    SEC_ANSWER_TWO,
-)
 
 
 def get_projected_week(input_string: str) -> typing.List[datetime.datetime]:
@@ -38,15 +30,15 @@ def get_projected_week(input_string: str) -> typing.List[datetime.datetime]:
 
 
 class PortalDriver:
+    """Object to replicate the human element of opening a browser"""
+
     def __init__(self, driver, url: str):
         self.driver = driver
         self.url = url
 
     def __del__(self):
         """When the object goes out of scope, kill it and clean up"""
-
         self.driver.quit()
-        os.remove("geckodriver.log")
 
     def run(self) -> None:
         """Start the driver"""
@@ -72,11 +64,13 @@ class PortalDriver:
         return [
             element.text
             for element in self.driver.find_elements_by_xpath(
-                '//*[contains(@class,"x-grid-cell x-grid-td x-grid-cell-headerId-gridColumn")]'
-            )[:7]
+                '//*[contains(@class,"shiftdisplay ellipsis job-dark-text  cal-day jobBg")]'
+            )
         ]
 
     def scrape_page(self) -> typing.List[EventPacket]:
+        """Depreicated manual process of scraping the physical elements on the screen"""
+
         container: typing.List[EventPacket] = []
 
         for element, corresponding in zip(
@@ -115,14 +109,15 @@ class PortalDriver:
 
     def find_partner_password_field(self):
         """
-        Find and fill the final password field for login
+        Find and fill te final password field for login
         Returns clickable submit button on the page
         """
 
         password_field = self.driver.find_element_by_css_selector(
-            "input[type='password']"
+            "#ContentPlaceHolder1_MFALoginControl1_PasswordView_tbxPassword"
         )
-        password_field.send_keys(USERNAME)
+        password_field.send_keys(os.environ.get("STAR_password"))
+
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
     def fill_and_submit_password_field(self):
@@ -135,12 +130,12 @@ class PortalDriver:
         """
 
         self.wait_for_element(
-            "input[class='textbox txtUserid']"
+            "#ContentPlaceHolder1_MFALoginControl1_UserIDView_txtUserid"
         )
 
         self.driver.find_element_by_css_selector(
-            "input[class='textbox txtUserid']"
-        ).send_keys(USERNAME)
+            "#ContentPlaceHolder1_MFALoginControl1_UserIDView_txtUserid"
+        ).send_keys(os.environ.get("STAR_username"))
 
         return self.driver.find_element_by_css_selector("input[type='submit']")
 
@@ -153,37 +148,25 @@ class PortalDriver:
         Returns clickable submit button on the page
         """
 
-        # security_question = self.driver.find_element_by_css_selector(
-        # "span[class='bodytext lblKBQ lblKBQ1']"
-        # )
-        # security_question_field = self.driver.find_element_by_css_selector(
-        # "input[class='textbox tbxKBA tbxKBA1']"
-        # )
-        # security_button = self.driver.find_element_by_css_selector(
-        # "input[type='submit']"
-        # )
-
-        security_question, security_question_field, security_button = map(
+        question, input_field, button = map(
             self.driver.find_element_by_css_selector,
             (
-                "span[class='bodytext lblKBQ lblKBQ1']",
-                "input[class='textbox tbxKBA tbxKBA1']",
-                "input[type='submit']",
+                "#ContentPlaceHolder1_MFALoginControl1_KBARegistrationView_lblKBQ1",
+                "#ContentPlaceHolder1_MFALoginControl1_KBARegistrationView_tbxKBA1",
+                "#ContentPlaceHolder1_MFALoginControl1_KBARegistrationView_btnSubmit",
             ),
         )
 
-        security_question_field.send_keys(
-            SEC_ANSWER_ONE
-            if security_question.text == SEC_ONE_QUESTION
-            else SEC_ANSWER_TWO
+        input_field.send_keys(
+            os.environ.get("STAR_sec_one_answer")
+            if question.text == os.environ.get("STAR_sec_one_question")
+            else os.environ.get("STAR_sec_two_answer")
         )
-        return security_button
+
+        return button
 
     def go_to_landing_page(self):
         """Navigate to the schedule landing page"""
-
-        print("[+] Loading portal login page....")
-        self.driver.get(portal_url)
 
         print("[+] Finding and filling username field....")
         self.wait_for_element("span[class='sbuxheadertext']")
@@ -193,12 +176,14 @@ class PortalDriver:
         self.wait_for_element("span[class='bodytext lblKBQIndicator lblKBQIndicator1']")
         self.find_two_factor_auth().click()
 
-        time.sleep(2) # there's this annoying pin message we can just wait out
+        time.sleep(1)  # there's this annoying pin message we can just wait out
 
         print("[+] Finding and filling in password field...")
         self.wait_for_element("a[id='sbuxForgotPasswordURL']")
         self.find_partner_password_field().click()
         self.wait_for_element("img[class='x-img rp-redprairie-logo x-img-default']")
+        self.driver.get(self.load_inner_html_page())
+        time.sleep(2)
 
     def go_to_next_week(self):
         """Navigate to the next week on the webpage"""
@@ -207,7 +192,6 @@ class PortalDriver:
             "span[id='button-1029-btnIconEl']"
         ).click()
 
-
     def wait_for_element(self, selector: str, delay=40):
         """Given a CSS Selector, wait for the element to appear"""
 
@@ -215,3 +199,36 @@ class PortalDriver:
             ec.presence_of_element_located((By.CSS_SELECTOR, selector))
         )
 
+    def siphon_requests(self) -> typing.List[EventPacket]:
+        """Listen to outbound requests to the server and note them"""
+
+        container = []
+
+        for request in self.driver.requests:
+            _dict = json.loads(request.response.body)
+
+            days_working = filter(
+                lambda x: not bool(x["daysInPast"]) and x["payScheduledShifts"],
+                _dict["days"],
+            )
+
+            for day in days_working:
+                # Use this to calculate the total time working along with pay
+
+                # total_work_time = day["netScheduledHours"]
+                for shift in day["payScheduledShifts"]:
+                    if shift["borrowedSite"]:
+                        # TODO: note what the adress is and change `LOCATION`
+
+                        print("oops")
+
+                    start, end = map(
+                        lambda x: datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S"),
+                        map(shift.get, ("start", "end")),
+                    )
+                    coverage_type = shift["job"]["name"]
+                    container.append(
+                        EventPacket(start, end, f"Jared's Work ({coverage_type})")
+                    )
+
+        return container
