@@ -45,60 +45,7 @@ class PortalDriver:
 
         self.driver.get(self.url)
 
-    @property
-    def current_week(self) -> str:
-        """Find the current week selected in the navigation menu"""
-
-        return self.driver.find_element_by_css_selector(
-            "#textfield-1026-inputEl"
-        ).get_attribute("value")
-
-    @property
-    def work_week(self) -> typing.List[str]:
-        """
-        Get a list of web driver elements that contain days working
-
-        @return typing.List[str] : contents of each field to be parsed
-        """
-
-        return [
-            element.text
-            for element in self.driver.find_elements_by_xpath(
-                '//*[contains(@class,"shiftdisplay ellipsis job-dark-text  cal-day jobBg")]'
-            )
-        ]
-
-    def scrape_page(self) -> typing.List[EventPacket]:
-        """Depreicated manual process of scraping the physical elements on the screen"""
-
-        container: typing.List[EventPacket] = []
-
-        for element, corresponding in zip(
-            self.work_week, get_projected_week(self.current_week)
-        ):
-            if element.strip():
-                match element.split("\n"):
-                    case [time, coverage, hours]:
-                        print("coverage")
-                    case [time, other_message]:
-                        # conditionally add but mark as unknown
-                        print("called off")
-                    case _:
-                        raise Exception("malformed data")
-
-                start, end = map(
-                    lambda x: datetime.datetime.combine(corresponding, x),
-                    map(
-                        lambda x: datetime.datetime.strptime(x, "%I:%M %p").time(),
-                        time.split(" - "),
-                    ),
-                )
-
-                container.append(EventPacket(start, end))
-
-        return container
-
-    def load_inner_html_page(self) -> str:
+    def get_embedded_page(self) -> str:
         """
         Return the embedded page in the portal that will allow access to the schedule
         """
@@ -113,15 +60,15 @@ class PortalDriver:
         Returns clickable submit button on the page
         """
 
-        password_field = self.driver.find_element_by_css_selector(
-            "#ContentPlaceHolder1_MFALoginControl1_PasswordView_tbxPassword"
+        field, button = map(
+            self.driver.find_element_by_css_selector,
+            (
+                "#ContentPlaceHolder1_MFALoginControl1_PasswordView_tbxPassword",
+                "input[type='submit']",
+            ),
         )
-        password_field.send_keys(os.environ.get("STAR_password"))
-
-        return self.driver.find_element_by_css_selector("input[type='submit']")
-
-    def fill_and_submit_password_field(self):
-        self.find_partner_password_field().click()
+        field.send_keys(os.environ.get("STAR_password"))
+        button.click()
 
     def find_partner_username(self):
         """
@@ -133,14 +80,15 @@ class PortalDriver:
             "#ContentPlaceHolder1_MFALoginControl1_UserIDView_txtUserid"
         )
 
-        self.driver.find_element_by_css_selector(
-            "#ContentPlaceHolder1_MFALoginControl1_UserIDView_txtUserid"
-        ).send_keys(os.environ.get("STAR_username"))
-
-        return self.driver.find_element_by_css_selector("input[type='submit']")
-
-    def fill_and_submit_username_field(self):
-        self.find_partner_username().click()
+        field, button = map(
+            self.driver.find_element_by_css_selector,
+            (
+                "#ContentPlaceHolder1_MFALoginControl1_UserIDView_txtUserid",
+                "input[type='submit']",
+            ),
+        )
+        field.send_keys(os.environ.get("STAR_username"))
+        button.click()
 
     def find_two_factor_auth(self):
         """
@@ -163,26 +111,27 @@ class PortalDriver:
             else os.environ.get("STAR_sec_two_answer")
         )
 
-        return button
+        button.click()
 
     def go_to_landing_page(self):
         """Navigate to the schedule landing page"""
 
         print("[+] Finding and filling username field....")
         self.wait_for_element("span[class='sbuxheadertext']")
-        self.find_partner_username().click()
+        self.find_partner_username()
 
         print("[+] Finding and filling in two factor authentication...")
         self.wait_for_element("span[class='bodytext lblKBQIndicator lblKBQIndicator1']")
-        self.find_two_factor_auth().click()
+        self.find_two_factor_auth()
 
         time.sleep(1)  # there's this annoying pin message we can just wait out
 
         print("[+] Finding and filling in password field...")
         self.wait_for_element("a[id='sbuxForgotPasswordURL']")
-        self.find_partner_password_field().click()
+        self.find_partner_password_field()
         self.wait_for_element("img[class='x-img rp-redprairie-logo x-img-default']")
-        self.driver.get(self.load_inner_html_page())
+
+        self.driver.get(self.get_embedded_page())
         time.sleep(2)
 
     def go_to_next_week(self):
