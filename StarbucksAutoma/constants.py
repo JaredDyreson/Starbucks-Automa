@@ -28,11 +28,14 @@ CONFIG_PATH = pathlib.Path(
 )
 
 
-def default_driver() -> webdriver.Firefox:
+def default_driver() -> webdriver.Chrome:
     """Generate a default driver"""
 
-    # headless_ = Options()
-    # # headless_.add_argument("--no-sandbox")
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+
     # headless_.add_argument("--headless")
 
     # chromeOptions = webdriver.ChromeOptions()
@@ -41,9 +44,9 @@ def default_driver() -> webdriver.Firefox:
 
     # chromeOptions.add_argument("--remote-debugging-port=9222")  # this
 
-    driver = webdriver.Firefox(
+    driver = webdriver.Chrome(
         # executable_path="/home/jared/Downloads/chromedriver",
-        # options=chromeOptions,
+        options=options,
         seleniumwire_options={
             "disable_encoding": True,
             "request_storage": "memory",

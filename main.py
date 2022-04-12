@@ -16,6 +16,8 @@ from StarbucksAutoma.constants import (
     CONFIG_PATH,
 )
 
+print("hello world!")
+
 with open(CONFIG_PATH, "r", encoding="utf-8") as fil_ptr:
     # Read in configuration data and load it into environment variables (as root)
     # These go away once the process is killed
