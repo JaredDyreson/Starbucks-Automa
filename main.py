@@ -5,9 +5,9 @@ import json
 import time
 
 # Check if you are running as root or normal user
-match os.getuid():
-    case num if num > 0:
-        raise PermissionError("you must run this as root")
+# match os.getuid():
+    # case num if num > 0:
+        # raise PermissionError("you must run this as root")
 
 from StarbucksAutoma.constants import (
     PORTAL_URL,
