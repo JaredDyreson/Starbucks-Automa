@@ -2,7 +2,7 @@ async-generator==1.10
 attrs==21.4.0
 blinker==1.4
 Brotli==1.0.9
-certifi==2021.10.8
+certifi==2022.12.7
 cffi==1.15.0
 cryptography==36.0.2
 h11==0.13.0
